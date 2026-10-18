@@ -117,6 +117,7 @@ void draw_conv_status(RichCanvas& canvas, ConvStatus st, int canvas_w, int right
     case ConvStatus::Yielded: text = "Playing audio"; dot = canvas.color565(150, 150, 150); break;
     case ConvStatus::Reconnecting: text = "Reconnecting"; dot = busy; break;
     case ConvStatus::Error: text = "Connection error"; dot = err; break;
+    case ConvStatus::ServerError: text = "Server error"; dot = err; break;
     }
     if (text == nullptr) return;
 

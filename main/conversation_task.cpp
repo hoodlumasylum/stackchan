@@ -84,6 +84,16 @@ constexpr std::uint32_t kThinkingTimeoutMs = 15000;
 // avatar inside a single user-noticeable pause. See GitHub issue #2.
 constexpr std::uint32_t kSpeakingTimeoutMs = 30000;
 
+// OpenAI / Grok session watchdogs. A session stuck in Init (handshake hung,
+// session.update rejected so session.updated never comes, a failed retry in
+// recover_after_error) is rebuilt after kInitTimeoutMs; while listening, the
+// client state is polled every kSessionCheckMs so a session that died without
+// a transport event is noticed and reconnected instead of sitting silent.
+constexpr std::uint32_t kInitTimeoutMs = 25000;
+constexpr std::uint32_t kSessionCheckMs = 1000;
+// How long a server `error` event keeps the "Grok error" badge up.
+constexpr std::uint32_t kServerErrorBadgeMs = 6000;
+
 // Local half-duplex state machine. Distinct from conv::ConversationState
 // (which tracks the protocol) because we hold "Speaking" until the speaker
 // has physically drained, independent of when response.done arrives.
@@ -256,7 +266,7 @@ public:
         }
         ESP_LOGI(kTag, "Wi-Fi up, starting %s conversation", provider_name());
 
-        event_queue_ = xQueueCreate(32, sizeof(conv::ConversationEvent*));
+        event_queue_ = xQueueCreate(64, sizeof(conv::ConversationEvent*));
         mic_buf_[0].resize(mic_chunk_samples_);
         mic_buf_[1].resize(mic_chunk_samples_);
 
@@ -346,7 +356,13 @@ private:
     void enqueue_event(const conv::ConversationEvent& ev)
     {
         auto* copy = new conv::ConversationEvent(ev);
-        if (xQueueSend(event_queue_, &copy, 0) != pdTRUE) {
+        // Audio chunks are droppable; control events (tool calls, done /
+        // error notifications) are not — losing a ToolCallRequested leaves
+        // the turn waiting forever. Give those a short wait for a free slot
+        // (the conv task can block for seconds in speak_katakoto).
+        const TickType_t wait =
+            ev.type == conv::ConversationEventType::AssistantAudioChunk ? 0 : pdMS_TO_TICKS(200);
+        if (xQueueSend(event_queue_, &copy, wait) != pdTRUE) {
             ESP_LOGW(kTag, "event queue full, dropping %d", static_cast<int>(ev.type));
             delete copy;
         }
@@ -424,6 +440,7 @@ private:
         config_ = cfg;
 
         set_local(Local::Init);
+        init_since_ms_ = now_ms();
         auto r = client_->start(config_);
         if (!r) {
             ESP_LOGE(kTag, "client start failed: %d", static_cast<int>(r.error()));
@@ -460,6 +477,7 @@ private:
         }
         state_.conv.status.store(ConvStatus::Reconnecting, std::memory_order_relaxed);
         state_.conv.reconnects.fetch_add(1, std::memory_order_relaxed);
+        reconnect_notice_pending_ = true;
         if (local_ == Local::Speaking) {
             M5.Speaker.end();
             vTaskDelay(kI2sSettle);
@@ -562,9 +580,20 @@ private:
     {
         switch (local_) {
         case Local::Init:
+            if (uses_realtime_client() && now_ms() - init_since_ms_ > kInitTimeoutMs) {
+                ESP_LOGW(kTag, "session not ready after %u ms — reconnecting",
+                         static_cast<unsigned>(now_ms() - init_since_ms_));
+                recover_after_error();
+                break;
+            }
             vTaskDelay(pdMS_TO_TICKS(20));
             break;
         case Local::Listening:
+            if (check_session_alive()) break;
+            if (state_.conv.status.load(std::memory_order_relaxed) == ConvStatus::ServerError &&
+                now_ms() - server_error_at_ms_ > kServerErrorBadgeMs) {
+                set_local(local_); // drop the error badge, back to Ready
+            }
             service_mic();
             service_delegate();
             service_notice();
@@ -867,6 +896,29 @@ private:
         return out;
     }
 
+    bool uses_realtime_client() const
+    {
+        return provider_ == config::Provider::Grok || provider_ == config::Provider::OpenAi;
+    }
+
+    // Returns true (after kicking off a reconnect) when the realtime session
+    // is gone even though we are locally listening.
+    bool check_session_alive()
+    {
+        if (!uses_realtime_client()) return false;
+        const std::uint32_t t = now_ms();
+        if (t - last_session_check_ms_ < kSessionCheckMs) return false;
+        last_session_check_ms_ = t;
+        const conv::ConversationState cs = client_->state();
+        if (cs == conv::ConversationState::Idle || cs == conv::ConversationState::Error) {
+            ESP_LOGW(kTag, "session dead while listening (client state %d) — reconnecting", static_cast<int>(cs));
+            state_.set_balloon_text("Connection lost - reconnecting...", /*hold_ms=*/3000);
+            recover_after_error();
+            return true;
+        }
+        return false;
+    }
+
     void enter_listening()
     {
         M5.Speaker.end();
@@ -1027,6 +1079,10 @@ private:
                 ESP_LOGI(kTag, "session ready");
                 state_.conv.active.store(true, std::memory_order_relaxed);
                 enter_listening();
+                if (reconnect_notice_pending_) {
+                    reconnect_notice_pending_ = false;
+                    state_.set_balloon_text("Reconnected - just talk to me", /*hold_ms=*/3000);
+                }
             }
             // Any time the backend reaches Listening (= setup accepted, session
             // alive) reset the consecutive-failure counter so a future
@@ -1153,10 +1209,18 @@ private:
                                          ev.error == conv::ConversationError::TransportInit;
             if (transport_error) {
                 ESP_LOGE(kTag, "transport error: %s — reconnecting", ev.text.c_str());
-                state_.set_balloon_text("Connection error", /*hold_ms=*/3000);
+                state_.set_balloon_text("Connection lost - reconnecting...", /*hold_ms=*/3000);
                 recover_after_error();
             } else {
                 ESP_LOGW(kTag, "server error (non-fatal): %s", ev.text.c_str());
+                // Make it visible: red "Grok error" badge for a few seconds
+                // plus the server's message in the balloon.
+                std::string msg = std::string{provider_ == config::Provider::Grok ? "Grok error: " : "Server error: "} +
+                                  ev.text;
+                if (msg.size() > 120) msg.resize(120);
+                state_.set_balloon_text(msg, /*hold_ms=*/kServerErrorBadgeMs);
+                server_error_at_ms_ = now_ms();
+                state_.conv.status.store(ConvStatus::ServerError, std::memory_order_relaxed);
             }
             break;
         }
@@ -1403,6 +1467,10 @@ private:
     std::size_t jitter_buffer_samples_{2400};
 
     Local local_{Local::Init};
+    std::uint32_t init_since_ms_{0};
+    std::uint32_t last_session_check_ms_{0};
+    std::uint32_t server_error_at_ms_{0};
+    bool reconnect_notice_pending_{false};
     std::uint32_t thinking_since_ms_{0};
     bool tool_pending_{false};
 

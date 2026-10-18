@@ -120,6 +120,7 @@ public:
         if (client_ != nullptr) {
             return tl::unexpected{ConversationError::InvalidState};
         }
+        stopping_.store(false, std::memory_order_relaxed);
         config_ = config;
         output_is_ulaw_ = (config_.output_sample_rate_hz == kG711SampleRate);
         tx_evicted_total_.store(0, std::memory_order_relaxed);
@@ -177,7 +178,7 @@ public:
 
         esp_websocket_register_events(client_, WEBSOCKET_EVENT_ANY, &Impl::websocket_event_trampoline, this);
 
-        session_updated_ = false;
+        session_updated_.store(false, std::memory_order_relaxed);
         pending_tool_call_ = false;
         tools_outstanding_ = 0;
         tool_outputs_sent_ = false;
@@ -216,10 +217,19 @@ public:
 
     tl::expected<void, ConversationError> push_audio(std::span<const std::int16_t> pcm)
     {
-        if (state_.load(std::memory_order_relaxed) != ConversationState::Listening) {
-            // Not an error: the coordinator may still be draining the mic
-            // after speech_stopped. Drop silently.
-            ESP_LOGD(kTag, "push_audio dropped (state != Listening)");
+        // Accept mic audio whenever the session is live, not only while the
+        // protocol state is exactly Listening. The coordinator already only
+        // calls this while it is locally listening (half-duplex: the mic is
+        // off during playback). Gating on Listening wedged the session for
+        // good whenever the server never sent the response.done that flips
+        // the state back (VAD false trigger with no reply, a tool-call
+        // continuation that never came, ...): every later mic chunk was
+        // dropped here, so server VAD never heard the user again and the
+        // robot "stopped answering" with the face still up.
+        const ConversationState st = state_.load(std::memory_order_relaxed);
+        if (!session_updated_.load(std::memory_order_relaxed) || st == ConversationState::Idle ||
+            st == ConversationState::Connecting || st == ConversationState::Error) {
+            ESP_LOGD(kTag, "push_audio dropped (session not live)");
             return {};
         }
         if (pcm.empty()) {
@@ -393,6 +403,10 @@ private:
 
     void teardown()
     {
+        // From here on, transport events are our own shutdown — don't report
+        // them as failures (that would bounce the coordinator into another
+        // reconnect).
+        stopping_.store(true, std::memory_order_relaxed);
         // Stop the sender first so it can't issue more writes against a
         // client we're about to destroy. Push a nullptr sentinel to unblock
         // a sender waiting on xQueueReceive.
@@ -568,18 +582,35 @@ private:
             break;
         case WEBSOCKET_EVENT_DISCONNECTED:
             ESP_LOGW(kTag, "WEBSOCKET_EVENT_DISCONNECTED");
+            if (stopping_.load(std::memory_order_relaxed)) break;
             set_state(ConversationState::Error);
             emit_error(ConversationError::NotConnected, "websocket disconnected");
             break;
         case WEBSOCKET_EVENT_ERROR:
             ESP_LOGE(kTag, "WEBSOCKET_EVENT_ERROR");
+            if (stopping_.load(std::memory_order_relaxed)) break;
             set_state(ConversationState::Error);
             emit_error(ConversationError::TransportInit, "websocket error");
             break;
-        case WEBSOCKET_EVENT_CLOSED:
-            ESP_LOGW(kTag, "WEBSOCKET_EVENT_CLOSED");
-            set_state(ConversationState::Idle);
+        case WEBSOCKET_EVENT_CLOSED: {
+            // Server-initiated close (close frame: session limit, idle
+            // policy, rejected request, ...). esp_websocket_client only
+            // dispatches CLOSED here — no DISCONNECTED — and its task exits.
+            // This used to just flip the state to Idle without telling the
+            // coordinator, so the session was dead for good while the face
+            // and the "Ready" badge stayed up. Report it so we reconnect.
+            const int code = data != nullptr ? data->close_status_code : 0;
+            ESP_LOGW(kTag, "WEBSOCKET_EVENT_CLOSED (close code %d)", code);
+            if (stopping_.load(std::memory_order_relaxed)) {
+                set_state(ConversationState::Idle);
+                break;
+            }
+            set_state(ConversationState::Error);
+            char msg[64];
+            std::snprintf(msg, sizeof(msg), "server closed the session (code %d)", code);
+            emit_error(ConversationError::NotConnected, msg);
             break;
+        }
         default:
             break;
         }
@@ -839,11 +870,23 @@ private:
             // @ 24 kHz input) — wait for session.updated so no µ-law audio is
             // streamed before our format is in effect.
             const bool ready = !is_grok() || std::strcmp(type, "session.updated") == 0;
-            if (ready && !session_updated_) {
-                session_updated_ = true;
+            if (ready && !session_updated_.load(std::memory_order_relaxed)) {
+                session_updated_.store(true, std::memory_order_relaxed);
                 set_state(ConversationState::Listening);
             }
         } else if (std::strcmp(type, "input_audio_buffer.speech_started") == 0) {
+            // A new user turn supersedes any half-finished tool-call
+            // continuation (e.g. a ToolCallRequested the coordinator never
+            // got to answer). Without this reset tools_outstanding_ could
+            // stay > 0 forever and every later tool call would never get
+            // its response.create — Grok would go quiet after using a tool.
+            {
+                std::lock_guard lock{send_mutex_};
+                pending_tool_call_ = false;
+                tools_outstanding_ = 0;
+                tool_outputs_sent_ = false;
+                tool_response_done_ = false;
+            }
             emit_simple(ConversationEventType::SpeechStarted);
             set_state(ConversationState::Listening);
         } else if (std::strcmp(type, "input_audio_buffer.speech_stopped") == 0) {
@@ -873,7 +916,8 @@ private:
             emit_simple(ConversationEventType::AssistantAudioDone);
         } else if (std::strcmp(type, "response.output_audio_transcript.delta") == 0 ||
                    std::strcmp(type, "response.audio_transcript.delta") == 0 ||
-                   std::strcmp(type, "response.text.delta") == 0) {
+                   std::strcmp(type, "response.text.delta") == 0 ||
+                   std::strcmp(type, "response.output_text.delta") == 0) {
             const char* delta = json_str(root, "delta");
             ConversationEvent ev{};
             ev.type = ConversationEventType::AssistantTextDelta;
@@ -881,7 +925,8 @@ private:
             emit(ev);
         } else if (std::strcmp(type, "response.output_audio_transcript.done") == 0 ||
                    std::strcmp(type, "response.audio_transcript.done") == 0 ||
-                   std::strcmp(type, "response.text.done") == 0) {
+                   std::strcmp(type, "response.text.done") == 0 ||
+                   std::strcmp(type, "response.output_text.done") == 0) {
             const char* full = json_str(root, "transcript");
             if (full == nullptr) {
                 full = json_str(root, "text");
@@ -900,6 +945,7 @@ private:
             handle_function_call_done(root);
         } else if (std::strcmp(type, "response.done") == 0) {
             response_active_.store(false, std::memory_order_relaxed);
+            report_failed_response(root);
             if (is_grok()) {
                 std::lock_guard lock{send_mutex_};
                 tool_response_done_ = true;
@@ -912,15 +958,58 @@ private:
                 set_state(ConversationState::Listening);
             }
         } else if (std::strcmp(type, "error") == 0) {
-            const cJSON* err = cJSON_GetObjectItemCaseSensitive(root, "error");
-            const char* msg = err != nullptr ? json_str(err, "message") : nullptr;
-            ESP_LOGE(kTag, "server error: %s", msg != nullptr ? msg : "(unknown)");
-            emit_error(ConversationError::ServerError, msg != nullptr ? msg : "server error");
+            handle_server_error(root);
+        } else if (std::strcmp(type, "input_audio_buffer.timeout_triggered") == 0) {
+            ESP_LOGI(kTag, "%s (server idle check-in)", type);
         } else {
             ESP_LOGD(kTag, "unhandled event: %s", type);
         }
 
         cJSON_Delete(root);
+    }
+
+    // `error` server event. Logged and surfaced to the coordinator (status
+    // badge + balloon). Errors that end the session (xAI `max_duration`,
+    // expired session) are escalated to NotConnected so the coordinator
+    // reconnects instead of sitting on a dead conversation.
+    void handle_server_error(const cJSON* root)
+    {
+        const cJSON* err = cJSON_GetObjectItemCaseSensitive(root, "error");
+        const char* msg = err != nullptr ? json_str(err, "message") : nullptr;
+        const char* code = err != nullptr ? json_str(err, "code") : nullptr;
+        const char* etype = err != nullptr ? json_str(err, "type") : nullptr;
+        ESP_LOGE(kTag, "server error: type=%s code=%s msg=%s session_live=%d", etype ? etype : "-",
+                 code ? code : "-", msg ? msg : "(unknown)",
+                 static_cast<int>(session_updated_.load(std::memory_order_relaxed)));
+        std::string text = msg != nullptr ? msg : (code != nullptr ? code : "server error");
+        auto contains = [](const char* s, const char* needle) {
+            return s != nullptr && std::strstr(s, needle) != nullptr;
+        };
+        const bool fatal = contains(code, "max_duration") || contains(etype, "max_duration") ||
+                           contains(msg, "max_duration") || contains(msg, "maximum duration") ||
+                           contains(code, "session_expired") || contains(msg, "session expired");
+        if (fatal) {
+            set_state(ConversationState::Error);
+            emit_error(ConversationError::NotConnected, "session ended: " + text);
+            return;
+        }
+        emit_error(ConversationError::ServerError, std::move(text));
+    }
+
+    // response.done with status "failed" carries the reason in
+    // response.status_details.error — surface it like an `error` event.
+    void report_failed_response(const cJSON* root)
+    {
+        const cJSON* resp = cJSON_GetObjectItemCaseSensitive(root, "response");
+        if (resp == nullptr) return;
+        const char* status = json_str(resp, "status");
+        if (status == nullptr || std::strcmp(status, "failed") != 0) return;
+        const cJSON* details = cJSON_GetObjectItemCaseSensitive(resp, "status_details");
+        const cJSON* err = details != nullptr ? cJSON_GetObjectItemCaseSensitive(details, "error") : nullptr;
+        const char* msg = err != nullptr ? json_str(err, "message") : nullptr;
+        if (msg == nullptr && err != nullptr) msg = json_str(err, "code");
+        ESP_LOGE(kTag, "response failed: %s", msg != nullptr ? msg : "(no details)");
+        emit_error(ConversationError::ServerError, msg != nullptr ? msg : "response failed");
     }
 
     void emit_simple(ConversationEventType type)
@@ -1007,7 +1096,10 @@ private:
     std::atomic<ConversationState> state_{ConversationState::Idle};
     std::mutex send_mutex_;
 
-    bool session_updated_{false};
+    std::atomic<bool> session_updated_{false};
+    // Set while teardown() is shutting the client down, so the resulting
+    // transport events aren't reported as failures.
+    std::atomic<bool> stopping_{false};
     // TEMP: per-chunk sequence counter for the push_audio diagnostic log.
     std::uint32_t audio_seq_{0};
     bool pending_tool_call_{false};

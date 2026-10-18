@@ -36,6 +36,7 @@ enum class ConvStatus : int {
     Thinking,     // speech stopped → waiting for the reply to begin
     ToolRunning,  // a tool call from the model is executing on-device
     AgentWaiting, // idle-listening while a delegated agent job (ask_agent) is outstanding
+    ServerError,  // the realtime server sent an `error` event (shown for a few seconds)
 };
 
 // A value guarded by a mutex with a lock-free version counter: the writer

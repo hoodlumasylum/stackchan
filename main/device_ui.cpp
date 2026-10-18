@@ -627,6 +627,7 @@ void draw_conversation()
     case ConvStatus::Yielded: status_text = "Playing audio"; status_color = dim; break;
     case ConvStatus::Reconnecting: status_text = "Reconnecting…"; status_color = warn; break;
     case ConvStatus::Error: status_text = "Connection error"; status_color = err; break;
+    case ConvStatus::ServerError: status_text = "Server error"; status_color = err; break;
     case ConvStatus::UserSpeaking: status_text = "Listening"; status_color = ok; break;
     case ConvStatus::Thinking: status_text = "Thinking"; status_color = ok; break;
     case ConvStatus::ToolRunning: status_text = "Using a tool"; status_color = ok; break;

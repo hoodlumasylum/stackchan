@@ -90,6 +90,7 @@ const char* conv_status_label(ConvStatus s)
     case ConvStatus::Thinking:     return "think";
     case ConvStatus::ToolRunning:  return "tool";
     case ConvStatus::AgentWaiting: return "agent";
+    case ConvStatus::ServerError:  return "srv err";
     }
     return "?";
 }
