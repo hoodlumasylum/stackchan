@@ -4,7 +4,7 @@
 
 Firmware for Stack-chan running on M5Stack CoreS3 / AtomS3R / AtomS3 / StopWatch (C152),
 written against ESP-IDF 5.5 / C++20. Supports AI voice conversation (OpenAI / Gemini /
-XiaoZhi), three configuration paths (BLE / Wi-Fi STA / SoftAP), and device-side OTA.
+XiaoZhi / xAI Grok), three configuration paths (BLE / Wi-Fi STA / SoftAP), and device-side OTA.
 
 ## Web Flasher / Settings page
 
@@ -37,10 +37,10 @@ appropriately.
 ## Features
 
 - **AI voice conversation**: WebSocket to one of OpenAI Realtime / Google Gemini
-  Live / a XiaoZhi server, streaming mic input → reply audio with mouth-sync.
+  Live / xAI Grok Voice / a XiaoZhi server, streaming mic input → reply audio with mouth-sync.
   The half-duplex CoreS3 mutes the mic while speaking; interrupt a reply
   (barge-in) with an LCD tap or a head touch (Si12T). Turns are detected by
-  server-side VAD. OpenAI / Gemini drive expression, head pose and robotic
+  server-side VAD. OpenAI / Gemini / Grok drive expression, head pose and robotic
   speech via tools (`set_expression` / `set_head_pose` / `speak_katakoto`);
   XiaoZhi maps its reply emotion to an expression. Reply text streams into
   the balloon.
@@ -124,9 +124,96 @@ boards; each lands under its own `build-<board>/` directory.
 `M5Unified` `RTC_PowerHub_Class::setAlarmIRQ` so it stops tripping the
 GCC 14 `-Werror=maybe-uninitialized` check.
 
-API keys for OpenAI / Gemini are not baked into the build — supply them at
+API keys for OpenAI / Gemini / xAI are not baked into the build — supply them at
 runtime from the BLE / Wi-Fi settings interface (stored in NVS). A
 compile-time default can be given via `sdkconfig.defaults.local` (gitignored).
+
+## Using Grok (xAI)
+
+Stack-chan can talk through the **xAI Grok Voice Agent**
+(`wss://api.x.ai/v1/realtime`), which is OpenAI Realtime-compatible. It reuses
+the OpenAI Realtime client, so tool calling (`set_expression` /
+`set_head_pose` / `speak_katakoto` / `ask_agent` …) works the same way.
+
+**Defaults**: model `grok-voice-latest`, voice `eve` (also `ara`, `rex`,
+`sal`, `leo`, or a custom voice ID). Audio is G.711 µ-law @ 8 kHz both ways,
+server-side VAD. Change model / voice at build time with
+`CONFIG_STACKCHAN_XAI_REALTIME_MODEL` / `CONFIG_STACKCHAN_XAI_VOICE`
+(`idf.py -B build-cores3 menuconfig` → *Stackchan Conversation*, or put them in
+`sdkconfig.defaults.local`).
+
+### Build & flash
+
+The released binaries on the upstream Web Flasher do **not** contain Grok
+support — build from this repo (ESP-IDF 5.5.x; verified with 5.5.5):
+
+```sh
+git clone --recurse-submodules https://github.com/hoodlumasylum/stackchan
+cd stackchan
+. ~/esp-idf/5.5.5/export.sh       # or wherever your ESP-IDF 5.5 lives
+tools/apply-m5-patches.sh
+make set-target BOARD=cores3      # first time only (atoms3r / stopwatch also work)
+make build      BOARD=cores3
+make flash      BOARD=cores3 PORT=/dev/ttyACM0   # macOS: /dev/cu.usbmodem*, Windows: COMx
+make monitor    BOARD=cores3 PORT=/dev/ttyACM0   # optional: watch the log
+```
+
+(`make` expects ESP-IDF at `~/esp-idf/5.5.5`; override with
+`make build IDF_PATH=/path/to/esp-idf`.) If the board is not detected, hold
+the reset button until the green LED blinks to enter download mode.
+
+### Configure Wi-Fi, xAI key and provider
+
+Get an API key at <https://console.x.ai/>. Then use any of the settings paths:
+
+- **Wi-Fi settings page** (easiest): on first boot without Wi-Fi, enter AP
+  mode on the device (Control tab → "AP モード"), join `Stackchan-XXXXXX`
+  (scan the QR on the LCD) and the captive portal opens the settings page. Or,
+  if the device is already on your network, open `http://stackchan-XXXXXX.local/`.
+  1. **接続 (Connection)** tab: set *Wi-Fi SSID* / password and set the
+     operation mode to **会話応答 (Conversation)**.
+  2. **会話 (Conversation)** tab: set **会話プロバイダ (provider)** to
+     **xAI Grok Voice** and paste the key into **xAI API キー (Grok)**.
+  3. Press **保存 & 再起動 (Save & restart)**. The header flag **X** lights up
+     once an xAI key is stored.
+- **BLE settings page**: the hosted upstream page does not know the new
+  field yet, so serve this repo's copy locally (Web Bluetooth needs
+  `https` or `localhost`): `cd tools && python3 -m http.server 8000`, open
+  <http://localhost:8000/settings.html> in desktop Chrome / Edge, press
+  **BLE 接続**, then fill in the same fields and press **保存 & 再起動**.
+- **HTTP API** (scripting): `POST /api/xai-api-key` (body = key),
+  `POST /api/provider` (body = `3`), then apply/restart as the page does.
+- **Build-time fallback**: `CONFIG_STACKCHAN_XAI_API_KEY="xai-..."` in the
+  gitignored `sdkconfig.defaults.local` is used when no key is stored in NVS.
+  Never commit a key.
+
+Provider values are `0` OpenAI, `1` Gemini, `2` XiaoZhi, `3` Grok. The on-device
+conversation page shows *サービス: xAI Grok* when it is selected.
+
+### Troubleshooting
+
+- `credentials empty for selected provider` in the log → the xAI key is not
+  stored; re-enter it and Save & restart.
+- Stuck on "接続エラー" / repeated reconnects → check the key is valid and has
+  credit, the network allows outbound `wss://api.x.ai:443`, and the clock /
+  TLS bundle is fine (`make monitor` shows `openai-rt` logs; a 401 means a bad
+  key). The client is shared with OpenAI, so its log tag is `openai-rt`.
+- `server error: …` lines are non-fatal xAI `error` events (e.g. an invalid
+  voice name — the previous session config stays in effect). Use one of the
+  listed voices.
+- Do not use the device-side "update from release" OTA or the upstream Web
+  Flasher on this build: they install upstream firmware, which has no Grok
+  provider (the setting falls back to OpenAI).
+- Robot replies before you finish talking / does not reply → tune the room
+  noise; VAD threshold, prefix padding and silence duration are shared with the
+  OpenAI path (`vad_*` in `ConversationConfig`).
+- Grok vs OpenAI protocol differences handled in code: `voice` and
+  `turn_detection` go at the session top level, no `OpenAI-Beta` header or
+  `session.type` / `tool_choice`, input transcription uses `grok-transcribe`,
+  the session is considered ready only on `session.updated`, the cumulative
+  `conversation.item.input_audio_transcription.updated` event is ignored, and
+  after (possibly parallel) tool calls a single `response.create` is sent only
+  once every tool output is submitted and the tool-call response is done.
 
 ## Boot sequence (CoreS3 default path)
 

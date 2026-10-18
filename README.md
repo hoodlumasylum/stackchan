@@ -34,7 +34,7 @@ Pages サイトに反映されます。
 
 ## 機能
 
-- **AI 音声対話**: OpenAI Realtime / Google Gemini Live / XiaoZhi サーバーに WebSocket
+- **AI 音声対話**: OpenAI Realtime / Google Gemini Live / xAI Grok Voice / XiaoZhi サーバーに WebSocket
   接続。マイク入力 → 応答音声 → 口パク連動。半二重 CoreS3 では発話中マイクを止め、
   応答中は LCD タップ / 頭タッチ (Si12T) で barge-in 可能。サーバー側 VAD で
   ターン検出。OpenAI / Gemini ではツール (`set_expression` / `set_head_pose` /
@@ -200,9 +200,13 @@ make monitor   BOARD=cores3 PORT=/dev/ttyACM0
 `RTC_PowerHub_Class::setAlarmIRQ` で GCC 14 の `-Werror=maybe-uninitialized`
 に引っかかる `buf` 初期化を当てるだけです。
 
-OpenAI / Gemini の API キーはビルドに埋め込まず、BLE / Wi-Fi 設定 IF から
+OpenAI / Gemini / xAI の API キーはビルドに埋め込まず、BLE / Wi-Fi 設定 IF から
 実行時に投入します (NVS に保存)。`sdkconfig.defaults.local` (gitignore 済み) で
 コンパイル時デフォルトを与えることもできます。
+
+xAI Grok Voice を使う場合: 設定ページ (Wi-Fi / BLE、保存後の再起動で反映) の「会話」タブで
+会話プロバイダを「xAI Grok Voice」にし、「xAI API キー (Grok)」を入力します。既定モデルは
+`grok-voice-latest`、既定ボイスは `eve`。詳細は [README.en.md の "Using Grok (xAI)"](README.en.md#using-grok-xai) を参照。
 
 ## 起動シーケンス (CoreS3 標準パス)
 
