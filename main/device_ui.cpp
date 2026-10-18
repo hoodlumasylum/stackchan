@@ -53,7 +53,7 @@ enum Page : int {
     kLtTimer = 6,
     kTabCount
 };
-const char* const kTabLabels[kTabCount] = {"情報", "設定1", "設定2", "操作", "範囲", "会話", "LT"};
+const char* const kTabLabels[kTabCount] = {"Info", "Set 1", "Set 2", "Control", "Range", "Chat", "LT"};
 int num_tab_pages() { return (kTabCount + kTabsPerPage - 1) / kTabsPerPage; }
 
 const auto* const kFontTitle = &fonts::lgfxJapanGothic_24;
@@ -349,15 +349,15 @@ void draw_info()
     // squeezing every pixel.
     const int dy = 18;
     draw_kv(y, "FW", app ? app->version : "?", fg); y += dy;
-    draw_kv(y, "SSID", g_ssid.empty() ? "(未設定)" : g_ssid.c_str(), fg); y += dy;
+    draw_kv(y, "SSID", g_ssid.empty() ? "(not set)" : g_ssid.c_str(), fg); y += dy;
     draw_kv(y, "mDNS", g_host.c_str(), fg); y += dy;
     draw_kv(y, "IP", ip.c_str(), wifi ? fg : off); y += dy;
-    draw_kv(y, "Wi-Fi", wifi ? "接続中" : "未接続", wifi ? ok : off); y += dy;
-    draw_kv(y, "BLE", ble ? "接続中" : "待受中", ble ? ok : fg); y += dy;
-    draw_kv(y, "稼働", uptime, fg); y += dy;
-    draw_kv(y, "空きRAM", heap, fg); y += dy;
-    draw_kv(y, "電池", battery, bat_color); y += dy;
-    draw_kv(y, "MCP", g_has_mcp_token ? "設定済" : "未設定",
+    draw_kv(y, "Wi-Fi", wifi ? "Connected" : "Offline", wifi ? ok : off); y += dy;
+    draw_kv(y, "BLE", ble ? "Connected" : "Waiting", ble ? ok : fg); y += dy;
+    draw_kv(y, "Uptime", uptime, fg); y += dy;
+    draw_kv(y, "Free RAM", heap, fg); y += dy;
+    draw_kv(y, "Battery", battery, bat_color); y += dy;
+    draw_kv(y, "MCP", g_has_mcp_token ? "Set" : "Not set",
             g_has_mcp_token ? ok : dim); y += dy;
 }
 
@@ -385,8 +385,8 @@ const char* op_mode_label(std::uint8_t m)
 const char* audio_output_label(std::uint8_t m)
 {
     switch (m) {
-    case 0: return "自動";
-    case 1: return "内蔵スピーカ";
+    case 0: return "Auto";
+    case 1: return "Internal";
     case 2: return "Module Audio";
     }
     return "?";
@@ -431,40 +431,40 @@ void draw_button(int i, const char* label, std::uint16_t color, int row_h = kRow
 //   設定2 — サーボ恒久 / 起動アルペジオ / 適用                   (4 rows w/ caption)
 void draw_settings()
 {
-    draw_value_row(0, "動作モード",
+    draw_value_row(0, "Mode",
                    op_mode_label(g_stage_op_mode.load(std::memory_order_relaxed)),
                    kSettingsRowH);
-    draw_value_row(1, "音声出力",
+    draw_value_row(1, "Audio out",
                    audio_output_label(g_stage_audio_output.load(std::memory_order_relaxed)),
                    kSettingsRowH);
-    draw_toggle_row(2, "RTP 音声受信", g_stage_rtp.load(std::memory_order_relaxed), kSettingsRowH);
-    draw_toggle_row(3, "電池ゲージ", g_stage_bat_gauge.load(std::memory_order_relaxed), kSettingsRowH);
+    draw_toggle_row(2, "RTP audio in", g_stage_rtp.load(std::memory_order_relaxed), kSettingsRowH);
+    draw_toggle_row(3, "Battery gauge", g_stage_bat_gauge.load(std::memory_order_relaxed), kSettingsRowH);
     g_cv->setFont(kFontBody);
     g_cv->setTextDatum(lgfx::textdatum_t::top_left);
     g_cv->setTextColor(g_cv->color565(150, 150, 150));
-    g_cv->drawString("→ スワイプで 設定2 / 操作 へ",
+    g_cv->drawString("Swipe for Set 2 / Control",
                      12, kContentY + 4 * kSettingsRowH + 4);
 }
 
 void draw_settings2()
 {
-    draw_toggle_row(0, "サーボ (恒久)", g_stage_servo_master.load(std::memory_order_relaxed),
+    draw_toggle_row(0, "Servos (saved)", g_stage_servo_master.load(std::memory_order_relaxed),
                     kSettingsRowH);
-    draw_toggle_row(1, "起動アルペジオ", g_stage_boot_arp.load(std::memory_order_relaxed),
+    draw_toggle_row(1, "Startup chime", g_stage_boot_arp.load(std::memory_order_relaxed),
                     kSettingsRowH);
-    draw_button(2, "適用（保存して再起動）", g_cv->color565(60, 120, 200), kSettingsRowH);
+    draw_button(2, "Apply (save & restart)", g_cv->color565(60, 120, 200), kSettingsRowH);
     g_cv->setFont(kFontBody);
     g_cv->setTextDatum(lgfx::textdatum_t::top_left);
     g_cv->setTextColor(g_cv->color565(150, 150, 150));
-    g_cv->drawString("設定1+2 の変更を「適用」で保存・再起動",
+    g_cv->drawString("Apply saves Set 1+2, then restarts",
                      12, kContentY + 3 * kSettingsRowH + 4);
 }
 
 void draw_control()
 {
     const bool servo_on = g_state->servo.enabled.load(std::memory_order_relaxed);
-    draw_toggle_row(0, "サーボ（脱力/復帰）", servo_on);
-    draw_button(1, "姿勢をリセット", g_cv->color565(60, 120, 200));
+    draw_toggle_row(0, "Servos on/off", servo_on);
+    draw_button(1, "Reset pose", g_cv->color565(60, 120, 200));
 
     // Speaker volume row: 3 hit zones — left third = -10 %, right third =
     // +10 %, center shows the current value and toggles mute. Live (no
@@ -476,7 +476,7 @@ void draw_control()
     g_cv->setFont(kFontBody);
     g_cv->setTextDatum(lgfx::textdatum_t::middle_left);
     g_cv->setTextColor(g_cv->color565(245, 245, 245));
-    g_cv->drawString("音量", rx + 12, ry + rh / 2);
+    g_cv->drawString("Volume", rx + 12, ry + rh / 2);
     // − / + visual hints on the row edges so the user knows they can tap
     // there to nudge the value.
     g_cv->setTextDatum(lgfx::textdatum_t::middle_center);
@@ -489,7 +489,7 @@ void draw_control()
     // it back (same zone as the mute tap).
     if (g_state->speaker.muted.load(std::memory_order_relaxed)) {
         g_cv->setTextColor(g_cv->color565(230, 110, 110));
-        g_cv->drawString("ミュート中", rx + rw / 2, ry + rh / 2);
+        g_cv->drawString("Muted", rx + rw / 2, ry + rh / 2);
     } else {
         char buf[16];
         std::snprintf(buf, sizeof(buf), "%u %%", static_cast<unsigned>(pct));
@@ -503,7 +503,7 @@ void draw_control()
     // reflects the live state so the same row dismisses it.
     const bool ap_on = wifi_ap_active();
     draw_button(3,
-                ap_on ? "AP モード（停止）" : "AP モード（Wi-Fi 再設定）",
+                ap_on ? "Stop Wi-Fi setup" : "Wi-Fi setup (hotspot)",
                 ap_on ? g_cv->color565(200, 90, 60)
                        : g_cv->color565(60, 120, 200));
 }
@@ -603,7 +603,7 @@ void draw_range()
     draw_range_btn(x0 + bw + gap,      L.y_pitch_btns, bw, kRangeBtnRowH - 4, "P-", min_c);
     draw_range_btn(x0 + 2 * (bw + gap), L.y_pitch_btns, bw, kRangeBtnRowH - 4, "P+", max_c);
 
-    draw_range_btn(12, L.y_save, kW - 24, kRangeSaveH, "保存（再起動）",
+    draw_range_btn(12, L.y_save, kW - 24, kRangeSaveH, "Save (restart)",
                    g_cv->color565(60, 140, 80));
 }
 
@@ -619,22 +619,22 @@ void draw_conversation()
     const char* status_text = "?";
     std::uint16_t status_color = dim;
     switch (st) {
-    case ConvStatus::Disabled: status_text = "無効"; status_color = dim; break;
-    case ConvStatus::WaitingWifi: status_text = "Wi-Fi 待ち"; status_color = warn; break;
-    case ConvStatus::Connecting: status_text = "接続中…"; status_color = warn; break;
-    case ConvStatus::Listening: status_text = "接続（待受）"; status_color = ok; break;
-    case ConvStatus::Talking: status_text = "通話中"; status_color = ok; break;
-    case ConvStatus::Yielded: status_text = "音声再生中"; status_color = dim; break;
-    case ConvStatus::Reconnecting: status_text = "再接続中…"; status_color = warn; break;
-    case ConvStatus::Error: status_text = "接続エラー"; status_color = err; break;
-    case ConvStatus::UserSpeaking: status_text = "聞き取り中"; status_color = ok; break;
-    case ConvStatus::Thinking: status_text = "応答待ち"; status_color = ok; break;
-    case ConvStatus::ToolRunning: status_text = "ツール実行中"; status_color = ok; break;
-    case ConvStatus::AgentWaiting: status_text = "エージェント待ち"; status_color = ok; break;
+    case ConvStatus::Disabled: status_text = "Off"; status_color = dim; break;
+    case ConvStatus::WaitingWifi: status_text = "Waiting for Wi-Fi"; status_color = warn; break;
+    case ConvStatus::Connecting: status_text = "Connecting…"; status_color = warn; break;
+    case ConvStatus::Listening: status_text = "Ready"; status_color = ok; break;
+    case ConvStatus::Talking: status_text = "Talking"; status_color = ok; break;
+    case ConvStatus::Yielded: status_text = "Playing audio"; status_color = dim; break;
+    case ConvStatus::Reconnecting: status_text = "Reconnecting…"; status_color = warn; break;
+    case ConvStatus::Error: status_text = "Connection error"; status_color = err; break;
+    case ConvStatus::UserSpeaking: status_text = "Listening"; status_color = ok; break;
+    case ConvStatus::Thinking: status_text = "Thinking"; status_color = ok; break;
+    case ConvStatus::ToolRunning: status_text = "Using a tool"; status_color = ok; break;
+    case ConvStatus::AgentWaiting: status_text = "Asking agent"; status_color = ok; break;
     }
     const std::uint32_t reconnects = g_state->conv.reconnects.load(std::memory_order_relaxed);
     char rc[16];
-    std::snprintf(rc, sizeof(rc), "%u 回", static_cast<unsigned>(reconnects));
+    std::snprintf(rc, sizeof(rc), "%u", static_cast<unsigned>(reconnects));
 
     int y = kContentY;
     const int dy = 26;
@@ -642,9 +642,9 @@ void draw_conversation()
                                 : g_provider == 2 ? "XiaoZhi"
                                 : g_provider == 3 ? "xAI Grok"
                                                   : "OpenAI Realtime";
-    draw_kv(y, "サービス", provider_name, fg); y += dy;
-    draw_kv(y, "状態", status_text, status_color); y += dy;
-    draw_kv(y, "再接続", rc, reconnects > 0 ? warn : fg); y += dy;
+    draw_kv(y, "Service", provider_name, fg); y += dy;
+    draw_kv(y, "Status", status_text, status_color); y += dy;
+    draw_kv(y, "Reconnects", rc, reconnects > 0 ? warn : fg); y += dy;
 }
 
 // --- LT (lightning talk) timekeeper page ----------------------------------
@@ -655,7 +655,7 @@ void draw_conversation()
 // a talk can't change the deadline.
 
 constexpr std::uint16_t kLtPresetsS[] = {180, 300, 600};
-constexpr const char* kLtPresetLabels[] = {"3分", "5分", "10分"};
+constexpr const char* kLtPresetLabels[] = {"3 min", "5 min", "10 min"};
 constexpr int kLtPresetY = 150;
 constexpr int kLtPresetH = 36;
 constexpr int kLtStartY = 196;
@@ -674,7 +674,7 @@ void draw_lt_timer()
     const std::uint16_t err = g_cv->color565(235, 100, 100);
 
     // Status line.
-    const char* status = !active ? "待機中" : (remaining < 0 ? "時間超過!" : "計測中");
+    const char* status = !active ? "Ready" : (remaining < 0 ? "Overtime!" : "Running");
     const std::uint16_t status_color = !active ? dim : (remaining < 0 ? err : ok);
     g_cv->setFont(kFontBody);
     g_cv->setTextDatum(lgfx::textdatum_t::top_center);
@@ -717,7 +717,7 @@ void draw_lt_timer()
                                            : g_cv->color565(60, 160, 90);
     g_cv->fillRoundRect(12, kLtStartY, kW - 24, kLtStartH, 6, btn_color);
     g_cv->setTextColor(g_cv->color565(245, 245, 245));
-    g_cv->drawString(active ? "ストップ" : "スタート", kW / 2, kLtStartY + kLtStartH / 2);
+    g_cv->drawString(active ? "Stop" : "Start", kW / 2, kLtStartY + kLtStartH / 2);
 }
 
 void render_page()

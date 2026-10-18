@@ -39,12 +39,12 @@ namespace stackchan::config {
 const char* operation_mode_label(OperationMode m)
 {
     switch (m) {
-    case OperationMode::MicLipSync:   return "マイクリップシンク";
-    case OperationMode::JttsRandom:   return "JTTSランダム発話";
-    case OperationMode::Conversation: return "会話応答";
-    case OperationMode::AsrLocal:     return "ローカル音声認識";
-    case OperationMode::EspNowRemote: return "ESP-NOWリモコン";
-    case OperationMode::EspNowSender: return "ESP-NOW姿勢配信";
+    case OperationMode::MicLipSync:   return "Mic lip-sync";
+    case OperationMode::JttsRandom:   return "Random talk";
+    case OperationMode::Conversation: return "Conversation";
+    case OperationMode::AsrLocal:     return "Local voice";
+    case OperationMode::EspNowRemote: return "ESP-NOW remote";
+    case OperationMode::EspNowSender: return "ESP-NOW sender";
     }
     return "?";
 }

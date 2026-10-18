@@ -106,17 +106,17 @@ void draw_conv_status(RichCanvas& canvas, ConvStatus st, int canvas_w, int right
     const std::uint16_t err = canvas.color565(230, 110, 110);
     switch (st) {
     case ConvStatus::Disabled: return;
-    case ConvStatus::WaitingWifi: text = "Wi-Fi待ち"; dot = busy; break;
-    case ConvStatus::Connecting: text = "接続中"; dot = busy; break;
-    case ConvStatus::Listening: text = "待受中"; dot = ok; break;
-    case ConvStatus::UserSpeaking: text = "聞き取り中"; dot = live; break;
-    case ConvStatus::Thinking: text = "応答待ち"; dot = busy; break;
-    case ConvStatus::ToolRunning: text = "ツール実行中"; dot = busy; break;
-    case ConvStatus::AgentWaiting: text = "エージェント待ち"; dot = busy; break;
-    case ConvStatus::Talking: text = "応答中"; dot = live; break;
-    case ConvStatus::Yielded: text = "音声再生中"; dot = canvas.color565(150, 150, 150); break;
-    case ConvStatus::Reconnecting: text = "再接続中"; dot = busy; break;
-    case ConvStatus::Error: text = "接続エラー"; dot = err; break;
+    case ConvStatus::WaitingWifi: text = "Waiting for Wi-Fi"; dot = busy; break;
+    case ConvStatus::Connecting: text = "Connecting"; dot = busy; break;
+    case ConvStatus::Listening: text = "Ready"; dot = ok; break;
+    case ConvStatus::UserSpeaking: text = "Listening"; dot = live; break;
+    case ConvStatus::Thinking: text = "Thinking"; dot = busy; break;
+    case ConvStatus::ToolRunning: text = "Using a tool"; dot = busy; break;
+    case ConvStatus::AgentWaiting: text = "Asking agent"; dot = busy; break;
+    case ConvStatus::Talking: text = "Speaking"; dot = live; break;
+    case ConvStatus::Yielded: text = "Playing audio"; dot = canvas.color565(150, 150, 150); break;
+    case ConvStatus::Reconnecting: text = "Reconnecting"; dot = busy; break;
+    case ConvStatus::Error: text = "Connection error"; dot = err; break;
     }
     if (text == nullptr) return;
 

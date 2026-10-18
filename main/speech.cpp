@@ -42,14 +42,14 @@ struct DefaultPhrase {
     std::u32string_view reading;     // kana for jtts
 };
 constexpr DefaultPhrase kDefaultPhrases[] = {
-    {"こんにちは",        U"こんにちわ"},
-    {"おはよう",          U"おはよー"},
-    {"やっほー",          U"やっほー"},
-    {"あそぼうよ",        U"あそぼーよ"},
-    {"なでなでして",      U"なでなで してー"},
-    {"おなかすいた",      U"おなか すいたー"},
-    {"元気元気！",        U"げんき げんき"},
-    {"スタックチャンです", U"すたっくちゃんです"},
+    {"Hello!",           U"こんにちわ"},
+    {"Good morning!",    U"おはよー"},
+    {"Yoo-hoo!",         U"やっほー"},
+    {"Let's play!",     U"あそぼーよ"},
+    {"Pet me!",          U"なでなで してー"},
+    {"I'm hungry!",      U"おなか すいたー"},
+    {"Full of energy!",  U"げんき げんき"},
+    {"I'm Stack-chan!",  U"すたっくちゃんです"},
 };
 
 jtts::Options default_options(std::uint32_t sample_rate)

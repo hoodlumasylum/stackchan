@@ -130,7 +130,7 @@ bool draw(M5GFX& display)
     // size that leaves room for the title (top) and 3 caption lines plus
     // the button band (bottom).
     const int caption_lines = tiny ? 1 : 3;
-    const int caption_line_h = round_ ? 22 : 14;
+    const int caption_line_h = round_ ? 22 : 18;
     const int caption_h = caption_lines * caption_line_h + 4;
     const int title_h = tiny ? 0 : (round_ ? 32 : 20);
     const int top_margin = tiny ? 8 : (round_ ? inset : 4);
@@ -160,7 +160,7 @@ bool draw(M5GFX& display)
                                 : &fonts::lgfxJapanGothic_16);
         display.setTextColor(TFT_BLACK, TFT_WHITE);
         display.setTextDatum(lgfx::textdatum_t::top_center);
-        display.drawString("Wi-Fi 設定モード", W / 2, top_margin);
+        display.drawString("Setup: scan QR or join Wi-Fi", W / 2, top_margin);
     }
 
     // QR. Version 0 = auto-pick by payload length. The payload is ≤ 80
@@ -170,18 +170,18 @@ bool draw(M5GFX& display)
     // Caption block between the QR and the exit button.
     if (!tiny) {
         display.setFont(round_ ? &fonts::lgfxJapanGothic_20
-                                : &fonts::lgfxJapanGothic_12);
+                                : &fonts::lgfxJapanGothic_16);
         display.setTextColor(TFT_BLACK, TFT_WHITE);
         display.setTextDatum(lgfx::textdatum_t::top_center);
         int ty = qr_y + qr_w + 4;
-        char buf[64];
-        std::snprintf(buf, sizeof(buf), "SSID: %s", ssid);
+        char buf[80];
+        std::snprintf(buf, sizeof(buf), "1. Join Wi-Fi: %s", ssid);
         display.drawString(buf, W / 2, ty);
         ty += caption_line_h;
-        std::snprintf(buf, sizeof(buf), "PW:   %s", pw);
+        std::snprintf(buf, sizeof(buf), "2. Password: %s", pw);
         display.drawString(buf, W / 2, ty);
         ty += caption_line_h;
-        std::snprintf(buf, sizeof(buf), "http://%s/", ip);
+        std::snprintf(buf, sizeof(buf), "3. Open http://%s", ip);
         display.drawString(buf, W / 2, ty);
     } else {
         // 128×128: only the SSID fits readably under the QR. iOS-camera-
@@ -203,7 +203,7 @@ bool draw(M5GFX& display)
                                 : &fonts::lgfxJapanGothic_16);
         display.setTextColor(TFT_WHITE, red);
         display.setTextDatum(lgfx::textdatum_t::middle_center);
-        display.drawString("終了 (AP モード停止)",
+        display.drawString("Close setup",
                            btn_x + btn_w / 2, btn_band_y + btn_h / 2);
     }
     display.endWrite();
