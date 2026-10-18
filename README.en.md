@@ -135,7 +135,7 @@ Stack-chan can talk through the **xAI Grok Voice Agent**
 the OpenAI Realtime client, so tool calling (`set_expression` /
 `set_head_pose` / `speak_katakoto` / `ask_agent` …) works the same way.
 
-**Defaults**: model `grok-voice-latest`, voice `eve` (also `ara`, `rex`,
+**Defaults**: model `grok-voice-latest`, voice `ara` (also `eve`, `rex`,
 `sal`, `leo`, or a custom voice ID). Audio is G.711 µ-law @ 8 kHz both ways,
 server-side VAD. Change model / voice at build time with
 `CONFIG_STACKCHAN_XAI_REALTIME_MODEL` / `CONFIG_STACKCHAN_XAI_VOICE`

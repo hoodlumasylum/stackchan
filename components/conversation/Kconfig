@@ -34,7 +34,7 @@ menu "Stackchan Conversation"
 
     config STACKCHAN_XAI_VOICE
         string "xAI Grok voice"
-        default "eve"
+        default "ara"
         help
             Built-in voice (eve, ara, rex, sal, leo) or a custom voice ID.
 

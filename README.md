@@ -206,7 +206,7 @@ OpenAI / Gemini / xAI の API キーはビルドに埋め込まず、BLE / Wi-Fi
 
 xAI Grok Voice を使う場合: 設定ページ (Wi-Fi / BLE、保存後の再起動で反映) の「会話」タブで
 会話プロバイダを「xAI Grok Voice」にし、「xAI API キー (Grok)」を入力します。既定モデルは
-`grok-voice-latest`、既定ボイスは `eve`。詳細は [README.en.md の "Using Grok (xAI)"](README.en.md#using-grok-xai) を参照。
+`grok-voice-latest`、既定ボイスは `ara`。詳細は [README.en.md の "Using Grok (xAI)"](README.en.md#using-grok-xai) を参照。
 
 ## 起動シーケンス (CoreS3 標準パス)
 
