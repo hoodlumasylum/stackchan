@@ -481,6 +481,7 @@ esp_err_t handle_status_get(httpd_req_t* req)
     body += "\"has_password\":" + std::string(cfg.wifi_password.empty() ? "false" : "true") + ",";
     body += "\"has_openai_key\":" + std::string(cfg.openai_api_key.empty() ? "false" : "true") + ",";
     body += "\"has_gemini_key\":" + std::string(cfg.gemini_api_key.empty() ? "false" : "true") + ",";
+    body += "\"has_xai_key\":" + std::string(cfg.xai_api_key.empty() ? "false" : "true") + ",";
     body += "\"xiaozhi_url\":\"" + escape_json(cfg.xiaozhi_url) + "\",";
     body += "\"has_xiaozhi_token\":" + std::string(cfg.xiaozhi_token.empty() ? "false" : "true") + ",";
     body += "\"openai_enabled\":" + std::string(cfg.openai_enabled ? "true" : "false") + ",";
@@ -569,6 +570,17 @@ esp_err_t handle_gemini_api_key_post(httpd_req_t* req)
     if (read_body_str(req, body, kMaxApiKey) != ESP_OK) return ESP_OK;
     xSemaphoreTake(g_mutex, portMAX_DELAY);
     g_staging.set_str("gemini-api-key", std::move(body));
+    xSemaphoreGive(g_mutex);
+    return send_empty(req);
+}
+
+esp_err_t handle_xai_api_key_post(httpd_req_t* req)
+{
+    if (!require_auth(req)) return ESP_OK;
+    std::string body;
+    if (read_body_str(req, body, kMaxApiKey) != ESP_OK) return ESP_OK;
+    xSemaphoreTake(g_mutex, portMAX_DELAY);
+    g_staging.set_str("xai-api-key", std::move(body));
     xSemaphoreGive(g_mutex);
     return send_empty(req);
 }
@@ -943,6 +955,7 @@ esp_err_t handle_provider_post(httpd_req_t* req)
     config::Provider p = config::Provider::OpenAi;
     if (v == static_cast<int>(config::Provider::Gemini)) p = config::Provider::Gemini;
     else if (v == static_cast<int>(config::Provider::XiaoZhi)) p = config::Provider::XiaoZhi;
+    else if (v == static_cast<int>(config::Provider::Grok)) p = config::Provider::Grok;
     xSemaphoreTake(g_mutex, portMAX_DELAY);
     g_staging.set_num("provider", static_cast<std::uint32_t>(p));
     xSemaphoreGive(g_mutex);
@@ -2292,6 +2305,7 @@ void register_handlers(httpd_handle_t server, const config::DeviceConfig& curren
     add(server, "/api/password",        HTTP_POST, handle_password_post);
     add(server, "/api/api-key",         HTTP_POST, handle_api_key_post);
     add(server, "/api/gemini-api-key",  HTTP_POST, handle_gemini_api_key_post);
+    add(server, "/api/xai-api-key",     HTTP_POST, handle_xai_api_key_post);
     add(server, "/api/xiaozhi-url",      HTTP_POST, handle_xiaozhi_url_post);
     add(server, "/api/xiaozhi-token",    HTTP_POST, handle_xiaozhi_token_post);
     add(server, "/api/openai-enabled",  HTTP_POST, handle_openai_enabled_post);

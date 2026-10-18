@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -10,14 +11,25 @@
 
 namespace stackchan::conversation {
 
+// Which OpenAI-Realtime-compatible server the client talks to.
+//   OpenAi — wss://api.openai.com/v1/realtime (GA session shape)
+//   Grok   — xAI Grok Voice Agent, wss://api.x.ai/v1/realtime. Same event
+//            protocol; the session.update shape (voice / turn_detection at
+//            the session top level) and a few events differ — see the .cpp.
+enum class RealtimeDialect : std::uint8_t {
+    OpenAi,
+    Grok,
+};
+
 // ConversationService backed by the OpenAI Realtime API over a raw WebSocket
-// (wss://api.openai.com/v1/realtime). Server-side VAD/STT/LLM/TTS — the whole
-// pipeline runs in one session, so commit_audio() is a no-op here.
+// (wss://api.openai.com/v1/realtime), or the xAI Grok Voice Agent which is
+// protocol-compatible. Server-side VAD/STT/LLM/TTS — the whole pipeline runs
+// in one session, so commit_audio() is a no-op here.
 class OpenAiRealtimeClient final : public ConversationService {
 public:
-    // `api_key` is the OpenAI API key used for the WebSocket upgrade
-    // (Authorization: Bearer ...).
-    explicit OpenAiRealtimeClient(std::string api_key);
+    // `api_key` is the OpenAI (or xAI, for RealtimeDialect::Grok) API key
+    // used for the WebSocket upgrade (Authorization: Bearer ...).
+    explicit OpenAiRealtimeClient(std::string api_key, RealtimeDialect dialect = RealtimeDialect::OpenAi);
     ~OpenAiRealtimeClient() override;
 
     OpenAiRealtimeClient(const OpenAiRealtimeClient&) = delete;

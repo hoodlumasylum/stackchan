@@ -33,6 +33,8 @@ constexpr const char* kTag = "openai-rt";
 
 // wss host + path. The model is appended as a query parameter.
 constexpr const char* kRealtimeUriPrefix = "wss://api.openai.com/v1/realtime?model=";
+// xAI Grok Voice Agent — OpenAI Realtime compatible endpoint.
+constexpr const char* kXaiRealtimeUriPrefix = "wss://api.x.ai/v1/realtime?model=";
 
 // Hot-path scratch sized for this many wire bytes per push_audio chunk.
 // At 8 kHz µ-law a 40 ms chunk is 320 bytes; 1024 leaves headroom for any
@@ -109,7 +111,7 @@ std::uint8_t pcm16_to_ulaw(std::int16_t pcm)
 
 class OpenAiRealtimeClient::Impl {
 public:
-    explicit Impl(std::string api_key) : api_key_{std::move(api_key)} {}
+    Impl(std::string api_key, RealtimeDialect dialect) : api_key_{std::move(api_key)}, dialect_{dialect} {}
 
     ~Impl() { teardown(); }
 
@@ -136,7 +138,7 @@ public:
         b64_scratch_.assign(b64_cap, '\0');
         json_scratch_.assign(b64_cap + 128, '\0');
 
-        const std::string uri = std::string{kRealtimeUriPrefix} + config_.model;
+        const std::string uri = std::string{is_grok() ? kXaiRealtimeUriPrefix : kRealtimeUriPrefix} + config_.model;
 
         esp_websocket_client_config_t cfg{};
         cfg.uri = uri.c_str();
@@ -171,12 +173,15 @@ public:
         apply_extra_ws_headers(client_, config_.extra_headers);
         // OpenAI Realtime is GA — the OpenAI-Beta: realtime=v1 header is no
         // longer accepted (the server returns "Realtime Beta API is no longer
-        // supported").
+        // supported"). xAI never takes it either, so no header for both.
 
         esp_websocket_register_events(client_, WEBSOCKET_EVENT_ANY, &Impl::websocket_event_trampoline, this);
 
         session_updated_ = false;
         pending_tool_call_ = false;
+        tools_outstanding_ = 0;
+        tool_outputs_sent_ = false;
+        tool_response_done_ = false;
         audio_seq_ = 0;
         set_state(ConversationState::Connecting);
 
@@ -279,6 +284,19 @@ public:
             return tl::unexpected{ConversationError::SendFailed};
         }
 
+        if (is_grok()) {
+            // xAI: with parallel tool calls, response.create must follow only
+            // after ALL function_call_outputs are in (and the tool-call
+            // response has finished), otherwise the model answers without the
+            // full tool context. maybe_continue_locked() sends it once the
+            // last output is submitted / response.done arrives.
+            if (tools_outstanding_ > 0) --tools_outstanding_;
+            tool_outputs_sent_ = true;
+            pending_tool_call_ = false;
+            return maybe_continue_locked() ? tl::expected<void, ConversationError>{}
+                                           : tl::unexpected{ConversationError::SendFailed};
+        }
+
         // Server VAD does not auto-continue after a tool result — ask for it.
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddStringToObject(resp, "type", "response.create");
@@ -340,6 +358,8 @@ public:
         // The turn is over from our side — go straight back to Listening so
         // push_audio is accepted again immediately.
         pending_tool_call_ = false;
+        tools_outstanding_ = 0;
+        tool_outputs_sent_ = false;
         set_state(ConversationState::Listening);
         return {};
     }
@@ -618,8 +638,107 @@ private:
 
     // ---- outbound: session.update -----------------------------------------
 
+    bool is_grok() const { return dialect_ == RealtimeDialect::Grok; }
+
+    // xAI: send response.create once every function_call_output of the
+    // current tool-call response has been submitted AND that response has
+    // finished (response.done). Caller holds send_mutex_. Returns false only
+    // when the send itself failed.
+    bool maybe_continue_locked()
+    {
+        if (!tool_outputs_sent_ || tools_outstanding_ > 0 || !tool_response_done_) {
+            return true;
+        }
+        tool_outputs_sent_ = false;
+        tool_response_done_ = false;
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddStringToObject(resp, "type", "response.create");
+        const bool ok = send_json(resp);
+        cJSON_Delete(resp);
+        return ok;
+    }
+
+    void add_function_tools(cJSON* session)
+    {
+        cJSON* tools = cJSON_AddArrayToObject(session, "tools");
+        for (const auto& tool : config_.tools) {
+            cJSON* t = cJSON_CreateObject();
+            cJSON_AddStringToObject(t, "type", "function");
+            cJSON_AddStringToObject(t, "name", tool.name.c_str());
+            cJSON_AddStringToObject(t, "description", tool.description.c_str());
+            cJSON* params = cJSON_Parse(tool.parameters_json.c_str());
+            if (params != nullptr) {
+                cJSON_AddItemToObject(t, "parameters", params);
+            }
+            cJSON_AddItemToArray(tools, t);
+        }
+    }
+
+    // xAI Grok Voice Agent session.update. Differences from the OpenAI GA
+    // shape: `voice` and `turn_detection` live at the session top level,
+    // there is no session.type / model / output_modalities / tool_choice,
+    // and input transcription uses "grok-transcribe" instead of whisper-1.
+    //   { "type": "session.update",
+    //     "session": { "instructions": "...", "voice": "eve",
+    //                  "turn_detection": { "type": "server_vad", ... },
+    //                  "audio": { "input":  { "format": { "type": "audio/pcmu" },
+    //                                         "transcription": {...} },
+    //                             "output": { "format": {...} } },
+    //                  "tools": [...] } }
+    void send_grok_session_update()
+    {
+        cJSON* root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "type", "session.update");
+        cJSON* session = cJSON_AddObjectToObject(root, "session");
+
+        if (!config_.instructions.empty()) {
+            cJSON_AddStringToObject(session, "instructions", config_.instructions.c_str());
+        }
+        if (!config_.voice.empty()) {
+            cJSON_AddStringToObject(session, "voice", config_.voice.c_str());
+        }
+
+        cJSON* vad = cJSON_AddObjectToObject(session, "turn_detection");
+        cJSON_AddStringToObject(vad, "type", "server_vad");
+        cJSON_AddNumberToObject(vad, "threshold", config_.vad_threshold);
+        cJSON_AddNumberToObject(vad, "prefix_padding_ms", config_.vad_prefix_padding_ms);
+        cJSON_AddNumberToObject(vad, "silence_duration_ms", config_.vad_silence_ms);
+
+        // Same G.711 µ-law @ 8 kHz uplink as OpenAI (xAI supports audio/pcmu
+        // at 8 kHz), so push_audio / the sender path are shared unchanged.
+        cJSON* audio = cJSON_AddObjectToObject(session, "audio");
+        cJSON* in = cJSON_AddObjectToObject(audio, "input");
+        cJSON* in_fmt = cJSON_AddObjectToObject(in, "format");
+        cJSON_AddStringToObject(in_fmt, "type", "audio/pcmu");
+        if (config_.enable_input_transcription) {
+            cJSON* tr = cJSON_AddObjectToObject(in, "transcription");
+            cJSON_AddStringToObject(tr, "model", "grok-transcribe");
+        }
+        cJSON* out = cJSON_AddObjectToObject(audio, "output");
+        cJSON* out_fmt = cJSON_AddObjectToObject(out, "format");
+        if (output_is_ulaw_) {
+            cJSON_AddStringToObject(out_fmt, "type", "audio/pcmu");
+        } else {
+            cJSON_AddStringToObject(out_fmt, "type", "audio/pcm");
+            cJSON_AddNumberToObject(out_fmt, "rate", config_.output_sample_rate_hz);
+        }
+
+        add_function_tools(session);
+
+        {
+            std::lock_guard lock{send_mutex_};
+            send_json(root);
+        }
+        cJSON_Delete(root);
+        ESP_LOGI(kTag, "session.update sent to xAI (%u tools)", static_cast<unsigned>(config_.tools.size()));
+    }
+
     void send_session_update()
     {
+        if (is_grok()) {
+            send_grok_session_update();
+            return;
+        }
         // GA Realtime API session.update payload:
         //   { "type": "session.update",
         //     "session": { "type": "realtime",
@@ -682,18 +801,7 @@ private:
         }
 
         // ---- tools ----
-        cJSON* tools = cJSON_AddArrayToObject(session, "tools");
-        for (const auto& tool : config_.tools) {
-            cJSON* t = cJSON_CreateObject();
-            cJSON_AddStringToObject(t, "type", "function");
-            cJSON_AddStringToObject(t, "name", tool.name.c_str());
-            cJSON_AddStringToObject(t, "description", tool.description.c_str());
-            cJSON* params = cJSON_Parse(tool.parameters_json.c_str());
-            if (params != nullptr) {
-                cJSON_AddItemToObject(t, "parameters", params);
-            }
-            cJSON_AddItemToArray(tools, t);
-        }
+        add_function_tools(session);
         cJSON_AddStringToObject(session, "tool_choice", "auto");
 
         {
@@ -727,7 +835,11 @@ private:
 
         if (std::strcmp(type, "session.created") == 0 || std::strcmp(type, "session.updated") == 0) {
             ESP_LOGI(kTag, "%s", type);
-            if (!session_updated_) {
+            // xAI sends session.created on connect with its defaults (PCM16
+            // @ 24 kHz input) — wait for session.updated so no µ-law audio is
+            // streamed before our format is in effect.
+            const bool ready = !is_grok() || std::strcmp(type, "session.updated") == 0;
+            if (ready && !session_updated_) {
                 session_updated_ = true;
                 set_state(ConversationState::Listening);
             }
@@ -743,8 +855,16 @@ private:
             ev.type = ConversationEventType::UserTranscript;
             ev.text = transcript != nullptr ? transcript : "";
             emit(ev);
+        } else if (std::strcmp(type, "conversation.item.input_audio_transcription.updated") == 0) {
+            // xAI-only: cumulative (not incremental) partial transcript of the
+            // user's speech. The final text arrives in ...completed, so skip.
+            ESP_LOGD(kTag, "%s", type);
         } else if (std::strcmp(type, "response.created") == 0) {
             response_active_.store(true, std::memory_order_relaxed);
+            if (is_grok()) {
+                std::lock_guard lock{send_mutex_};
+                tool_response_done_ = false;
+            }
         } else if (std::strcmp(type, "response.output_audio.delta") == 0 ||
                    std::strcmp(type, "response.audio.delta") == 0) { // GA / beta names
             handle_audio_delta(root);
@@ -780,6 +900,13 @@ private:
             handle_function_call_done(root);
         } else if (std::strcmp(type, "response.done") == 0) {
             response_active_.store(false, std::memory_order_relaxed);
+            if (is_grok()) {
+                std::lock_guard lock{send_mutex_};
+                tool_response_done_ = true;
+                if (!maybe_continue_locked()) {
+                    ESP_LOGW(kTag, "response.create after tool outputs failed");
+                }
+            }
             emit_simple(ConversationEventType::ResponseDone);
             if (!pending_tool_call_) {
                 set_state(ConversationState::Listening);
@@ -858,6 +985,10 @@ private:
             fn_args_.erase(call_id);
         }
         pending_tool_call_ = true;
+        if (is_grok()) {
+            std::lock_guard lock{send_mutex_};
+            ++tools_outstanding_;
+        }
 
         ConversationEvent ev{};
         ev.type = ConversationEventType::ToolCallRequested;
@@ -868,6 +999,7 @@ private:
     // ---- members -----------------------------------------------------------
 
     std::string api_key_;
+    RealtimeDialect dialect_{RealtimeDialect::OpenAi};
     ConversationConfig config_{};
     EventCallback event_callback_{};
 
@@ -879,6 +1011,12 @@ private:
     // TEMP: per-chunk sequence counter for the push_audio diagnostic log.
     std::uint32_t audio_seq_{0};
     bool pending_tool_call_{false};
+    // xAI tool-call continuation gate (guarded by send_mutex_): calls still
+    // awaiting submit_tool_result, whether any output was submitted, and
+    // whether the response that carried the calls has finished.
+    std::size_t tools_outstanding_{0};
+    bool tool_outputs_sent_{false};
+    bool tool_response_done_{false};
     bool output_is_ulaw_{false};            // wire codec for assistant audio (g711_ulaw vs pcm16)
     std::atomic<bool> response_active_{false}; // a response is mid-generation (set/cleared from the WS task)
 
@@ -911,8 +1049,8 @@ private:
     std::unordered_map<std::string, std::string> fn_args_;
 };
 
-OpenAiRealtimeClient::OpenAiRealtimeClient(std::string api_key)
-    : impl_{std::make_unique<Impl>(std::move(api_key))}
+OpenAiRealtimeClient::OpenAiRealtimeClient(std::string api_key, RealtimeDialect dialect)
+    : impl_{std::make_unique<Impl>(std::move(api_key), dialect)}
 {
 }
 

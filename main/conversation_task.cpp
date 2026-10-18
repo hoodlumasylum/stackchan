@@ -47,6 +47,7 @@ constexpr const char* kTag = "conv-task";
 // Audio rates depend on the selected provider:
 //   OpenAI Realtime: µ-law @ 8 kHz both directions (encoded inside the
 //                    client, this task just deals in PCM16).
+//   xAI Grok:        same as OpenAI (shares the OpenAI Realtime client).
 //   Gemini Live:     PCM16 @ 16 kHz uplink, PCM16 @ 24 kHz downlink.
 // The values used here are PCM16 sample rates the client expects/produces;
 // any companding happens inside the ConversationService impl.
@@ -279,6 +280,8 @@ public:
             client_ = std::make_unique<conv::GeminiLiveClient>(api_key_);
         } else if (provider_ == config::Provider::XiaoZhi) {
             client_ = std::make_unique<conv::XiaoZhiClient>(xiaozhi_url_, xiaozhi_token_);
+        } else if (provider_ == config::Provider::Grok) {
+            client_ = std::make_unique<conv::OpenAiRealtimeClient>(api_key_, conv::RealtimeDialect::Grok);
         } else {
             client_ = std::make_unique<conv::OpenAiRealtimeClient>(api_key_);
         }
@@ -394,6 +397,9 @@ private:
             // preview is what's actually live on the Developer API right now.
             cfg.model = "gemini-2.5-flash-native-audio-preview-12-2025";
             cfg.voice = "Aoede"; // pre-built voice name; OK to leave empty
+        } else if (provider_ == config::Provider::Grok) {
+            cfg.model = CONFIG_STACKCHAN_XAI_REALTIME_MODEL; // grok-voice-latest
+            cfg.voice = CONFIG_STACKCHAN_XAI_VOICE;          // eve / ara / rex / sal / leo
         } else {
             cfg.model = CONFIG_STACKCHAN_OPENAI_REALTIME_MODEL;
             cfg.voice = CONFIG_STACKCHAN_OPENAI_VOICE;
@@ -1371,6 +1377,7 @@ private:
         switch (provider_) {
         case config::Provider::Gemini: return "Gemini";
         case config::Provider::XiaoZhi: return "XiaoZhi";
+        case config::Provider::Grok: return "Grok";
         default: return "OpenAI";
         }
     }

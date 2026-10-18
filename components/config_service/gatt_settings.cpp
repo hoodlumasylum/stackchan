@@ -51,6 +51,7 @@ constexpr const char* kTag = "cfg-gatt";
 // AudioCtrl: e3f0a00e-...  AudioData: e3f0a00f-...  AudioCredit: e3f0a010-...
 // RtpEnabled: e3f0a011-...  WifiMac: e3f0a012-...
 // XiaoZhiUrl: e3f0a013-...  XiaoZhiToken: e3f0a014-...
+// XaiApiKey: e3f0a032-...
 
 static const ble_uuid128_t kSvcUuid = BLE_UUID128_INIT(
     0x00, 0x1f, 0x4b, 0x8d, 0x5a, 0x2c, 0x6f, 0x9e,
@@ -103,7 +104,7 @@ static const ble_uuid128_t kOtaControlUuid = BLE_UUID128_INIT(
 static const ble_uuid128_t kOtaDataUuid = BLE_UUID128_INIT(
     0x00, 0x1f, 0x4b, 0x8d, 0x5a, 0x2c, 0x6f, 0x9e,
     0x2a, 0x4d, 0x1c, 0x7b, 0x0a, 0xa0, 0xf0, 0xe3);
-// Provider — encrypted 1-byte enum (0=OpenAI, 1=Gemini). Selects which
+// Provider — encrypted 1-byte enum (0=OpenAI, 1=Gemini, 2=XiaoZhi, 3=Grok). Selects which
 // realtime conversation backend the conversation task talks to at boot.
 static const ble_uuid128_t kProviderUuid = BLE_UUID128_INIT(
     0x00, 0x1f, 0x4b, 0x8d, 0x5a, 0x2c, 0x6f, 0x9e,
@@ -113,6 +114,11 @@ static const ble_uuid128_t kProviderUuid = BLE_UUID128_INIT(
 static const ble_uuid128_t kGeminiApiKeyUuid = BLE_UUID128_INIT(
     0x00, 0x1f, 0x4b, 0x8d, 0x5a, 0x2c, 0x6f, 0x9e,
     0x2a, 0x4d, 0x1c, 0x7b, 0x0c, 0xa0, 0xf0, 0xe3);
+// XaiApiKey — encrypted write-only string, the xAI API key used when
+// provider == Grok. Stored separately like GeminiApiKey.
+static const ble_uuid128_t kXaiApiKeyUuid = BLE_UUID128_INIT(
+    0x00, 0x1f, 0x4b, 0x8d, 0x5a, 0x2c, 0x6f, 0x9e,
+    0x2a, 0x4d, 0x1c, 0x7b, 0x32, 0xa0, 0xf0, 0xe3);
 // WifiIp — encrypted READ-only string with the current STA IPv4 address
 // (e.g. "192.168.1.42"), or empty string when Wi-Fi is down. Lets the
 // browser surface a fallback link for environments where the corresponding
@@ -466,6 +472,7 @@ static uint16_t g_ota_ctrl_handle = 0;
 static uint16_t g_ota_data_handle = 0;
 static uint16_t g_provider_handle = 0;
 static uint16_t g_gemini_key_handle = 0;
+static uint16_t g_xai_key_handle = 0;
 static uint16_t g_xiaozhi_url_handle = 0;
 static uint16_t g_xiaozhi_token_handle = 0;
 static uint16_t g_face_config_handle = 0;
@@ -529,6 +536,8 @@ std::array<uint8_t, 2> compute_status_locked()
     if (g_active.openai_enabled) flags |= 0x08;
     if (!g_active.gemini_api_key.empty()) flags |= 0x10;
     if (g_active.provider == Provider::Gemini) flags |= 0x20;
+    if (!g_active.xai_api_key.empty()) flags |= 0x40;
+    if (g_active.provider == Provider::Grok) flags |= 0x80;
     return {flags, g_wifi_connected ? uint8_t{1} : uint8_t{0}};
 }
 
@@ -1442,6 +1451,7 @@ static int gatt_access_cb(uint16_t /*conn_handle*/, uint16_t attr_handle,
             Provider p = Provider::OpenAi;
             if (pt[0] == static_cast<std::uint8_t>(Provider::Gemini)) p = Provider::Gemini;
             else if (pt[0] == static_cast<std::uint8_t>(Provider::XiaoZhi)) p = Provider::XiaoZhi;
+            else if (pt[0] == static_cast<std::uint8_t>(Provider::Grok)) p = Provider::Grok;
             xSemaphoreTake(g_mutex, portMAX_DELAY);
             g_staging.set_num("provider", static_cast<std::uint32_t>(p));
             xSemaphoreGive(g_mutex);
@@ -1452,6 +1462,14 @@ static int gatt_access_cb(uint16_t /*conn_handle*/, uint16_t attr_handle,
             std::string val(reinterpret_cast<const char*>(pt.data()), pt.size());
             xSemaphoreTake(g_mutex, portMAX_DELAY);
             g_staging.set_str("gemini-api-key", std::move(val));
+            xSemaphoreGive(g_mutex);
+            return 0;
+        }
+        if (attr_handle == g_xai_key_handle) {
+            if (pt.size() > 256) return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+            std::string val(reinterpret_cast<const char*>(pt.data()), pt.size());
+            xSemaphoreTake(g_mutex, portMAX_DELAY);
+            g_staging.set_str("xai-api-key", std::move(val));
             xSemaphoreGive(g_mutex);
             return 0;
         }
@@ -2002,6 +2020,12 @@ static ble_gatt_chr_def kChrs[] = {
         .access_cb = gatt_access_cb,
         .flags = BLE_GATT_CHR_F_WRITE,
         .val_handle = &g_gemini_key_handle,
+    },
+    {
+        .uuid = &kXaiApiKeyUuid.u,
+        .access_cb = gatt_access_cb,
+        .flags = BLE_GATT_CHR_F_WRITE,
+        .val_handle = &g_xai_key_handle,
     },
     {
         .uuid = &kXiaozhiUrlUuid.u,

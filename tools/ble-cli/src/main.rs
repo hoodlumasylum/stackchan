@@ -290,9 +290,10 @@ async fn run_session(p: &Peripheral, cli: &Cli) -> Result<()> {
             if bytes.len() >= 2 {
                 let f = bytes[0];
                 println!(
-                    "  ssid_set={} wifi_pw_set={} openai_key_set={} openai_on={} gemini_key_set={} provider_gemini={}",
+                    "  ssid_set={} wifi_pw_set={} openai_key_set={} openai_on={} gemini_key_set={} provider_gemini={} xai_key_set={} provider_grok={}",
                     f & 0x01 != 0, f & 0x02 != 0, f & 0x04 != 0,
                     f & 0x08 != 0, f & 0x10 != 0, f & 0x20 != 0,
+                    f & 0x40 != 0, f & 0x80 != 0,
                 );
                 println!("  wifi_connected={}", bytes[1] != 0);
             }

@@ -375,6 +375,7 @@
         <span class="flag" id="flag-en"   title="OpenAI 有効">O</span>
         <span class="flag" id="flag-gkey" title="Gemini key 設定済み">G</span>
         <span class="flag" id="flag-prov" title="Provider = Gemini">P</span>
+        <span class="flag" id="flag-xkey" title="xAI key 設定済み">X</span>
       </span>
     </div>
     <div id="header-info">
@@ -777,6 +778,7 @@
         <option value="0">OpenAI Realtime</option>
         <option value="1">Google Gemini Live</option>
         <option value="2">XiaoZhi サーバー</option>
+        <option value="3">xAI Grok Voice</option>
       </select>
       <p class="hint">どの会話バックエンドを使うかを切り替えます。キー / 設定は下記すべてに保存できます。</p>
 
@@ -785,6 +787,9 @@
 
       <label for="gemini-apikey">Gemini API キー</label>
       <input type="password" id="gemini-apikey" maxlength="256" placeholder="AIza… （変更しない場合は空欄）">
+
+      <label for="xai-apikey">xAI API キー (Grok)</label>
+      <input type="password" id="xai-apikey" maxlength="256" placeholder="xai-… （変更しない場合は空欄）">
 
       <label for="xiaozhi-url">XiaoZhi サーバー URL</label>
       <input type="text" id="xiaozhi-url" maxlength="256" placeholder="ws://192.168.1.10:8000/xiaozhi/v1/">
@@ -796,7 +801,7 @@
       <textarea id="system-prompt" rows="6" maxlength="2048"
                 style="width:100%;box-sizing:border-box;font-size:0.8rem;padding:0.4rem;border:1px solid #ccc;border-radius:4px;white-space:pre-wrap"
                 placeholder="空欄にすると組み込みの既定プロンプトを使用します"></textarea>
-      <p class="hint">OpenAI / Gemini の会話に使う指示文。XiaoZhi はサーバー側の人格を使うため無視されます。保存後の再起動で反映されます。</p>
+      <p class="hint">OpenAI / Gemini / Grok の会話に使う指示文。XiaoZhi はサーバー側の人格を使うため無視されます。保存後の再起動で反映されます。</p>
 
       <label for="conv-headers">追加 HTTP ヘッダ (会話 API)</label>
       <textarea id="conv-headers" rows="3" maxlength="1024"
@@ -1672,6 +1677,7 @@ async function refresh() {
     setFlag('flag-pass', !!s.has_password);
     setFlag('flag-key',  !!s.has_openai_key);
     setFlag('flag-gkey', !!s.has_gemini_key);
+    setFlag('flag-xkey', !!s.has_xai_key);
     setFlag('flag-en',   !!s.openai_enabled);
     setFlag('flag-prov', (s.provider | 0) === 1);
 
@@ -1723,6 +1729,7 @@ async function apply() {
     const pass = $('password').value;
     const apiKey = $('apikey').value;
     const geminiKey = $('gemini-apikey').value;
+    const xaiKey = $('xai-apikey').value;
     const provider = $('provider').value;
     const enabled = $('openai-enabled').checked;
     const rtpEnabled = $('rtp-enabled').checked;
@@ -1737,6 +1744,7 @@ async function apply() {
     if (pass)      { await postText('/api/password', pass);                   log('パスワード送信', 'ok'); }
     if (apiKey)    { await postText('/api/api-key', apiKey);                  log('OpenAI キー送信', 'ok'); }
     if (geminiKey) { await postText('/api/gemini-api-key', geminiKey);        log('Gemini キー送信', 'ok'); }
+    if (xaiKey)    { await postText('/api/xai-api-key', xaiKey);              log('xAI キー送信', 'ok'); }
     const xzUrl = $('xiaozhi-url').value.trim();
     const xzToken = $('xiaozhi-token').value;
     if (xzUrl)     { await postText('/api/xiaozhi-url', xzUrl);               log('XiaoZhi URL 送信', 'ok'); }

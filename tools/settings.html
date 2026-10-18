@@ -436,6 +436,7 @@
         <span class="flag" id="flag-en"   title="OpenAI 有効">O</span>
         <span class="flag" id="flag-gkey" title="Gemini key 設定済み">G</span>
         <span class="flag" id="flag-prov" title="Provider = Gemini">P</span>
+        <span class="flag" id="flag-xkey" title="xAI key 設定済み">X</span>
       </span>
     </div>
     <div id="header-info" hidden>
@@ -929,6 +930,7 @@
         <option value="0">OpenAI Realtime</option>
         <option value="1">Google Gemini Live</option>
         <option value="2">XiaoZhi サーバー</option>
+        <option value="3">xAI Grok Voice</option>
       </select>
       <p class="hint">どの会話バックエンドを使うかを切り替えます。キー / 設定は下記すべてに保存できます。</p>
 
@@ -937,6 +939,9 @@
 
       <label for="gemini-apikey">Gemini API キー</label>
       <input type="password" id="gemini-apikey" maxlength="256" placeholder="AIza… （変更しない場合は空欄）">
+
+      <label for="xai-apikey">xAI API キー (Grok)</label>
+      <input type="password" id="xai-apikey" maxlength="256" placeholder="xai-… （変更しない場合は空欄）">
 
       <label for="xiaozhi-url">XiaoZhi サーバー URL</label>
       <input type="text" id="xiaozhi-url" maxlength="256" placeholder="ws://192.168.1.10:8000/xiaozhi/v1/ （変更しない場合は空欄）">
@@ -1283,6 +1288,7 @@ const CHR_OTA_CTRL = 'e3f0a009-7b1c-4d2a-9e6f-2c5a8d4b1f00';
 const CHR_OTA_DATA = 'e3f0a00a-7b1c-4d2a-9e6f-2c5a8d4b1f00';
 const CHR_PROVIDER = 'e3f0a00b-7b1c-4d2a-9e6f-2c5a8d4b1f00';
 const CHR_GEMINI_KEY = 'e3f0a00c-7b1c-4d2a-9e6f-2c5a8d4b1f00';
+const CHR_XAI_KEY = 'e3f0a032-7b1c-4d2a-9e6f-2c5a8d4b1f00';
 const CHR_XIAOZHI_URL = 'e3f0a013-7b1c-4d2a-9e6f-2c5a8d4b1f00';
 const CHR_XIAOZHI_TOKEN = 'e3f0a014-7b1c-4d2a-9e6f-2c5a8d4b1f00';
 // FaceConfig — encrypted compact JSON of the avatar face tuning. WRITE applies
@@ -1323,7 +1329,7 @@ const DIS_CHRS = {
 
 // --- State ---
 let bleDevice = null, bleServer = null, svc = null;
-let chrSsid = null, chrPass = null, chrKey = null, chrApply = null, chrStatus = null, chrKx = null, chrEn = null, chrRtpEn = null, chrJttsIdleEn = null, chrJtts = null, chrOtaCtrl = null, chrOtaData = null, chrProvider = null, chrGeminiKey = null, chrXiaozhiUrl = null, chrXiaozhiToken = null, chrFaceConfig = null, chrBattery = null, chrBatGauge = null, chrStartupArp = null, chrServoEnabled = null, chrMcpToken = null, chrLtConfig = null, chrServoLimits = null, chrServoRangeMode = null, chrServoPositions = null, chrBoardKind = null, chrWifiIp = null, chrWifiMac = null, chrAudioCtrl = null, chrAudioData = null, chrAudioCredit = null, chrAudioMetrics = null, chrLedState = null, chrMicLipGain = null, chrLedMouthSync = null, chrLipSyncMode = null, chrMicLipAgc = null, chrSpeakerVolume = null, chrJttsSay = null, chrSanoTts = null, chrOperationMode = null, chrAudioOutput = null, chrBargeIn = null, chrProximity = null, chrProximityTuning = null, chrDeviceName = null, chrAuthPassword = null, chrAvatarBc = null;
+let chrSsid = null, chrPass = null, chrKey = null, chrApply = null, chrStatus = null, chrKx = null, chrEn = null, chrRtpEn = null, chrJttsIdleEn = null, chrJtts = null, chrOtaCtrl = null, chrOtaData = null, chrProvider = null, chrGeminiKey = null, chrXaiKey = null, chrXiaozhiUrl = null, chrXiaozhiToken = null, chrFaceConfig = null, chrBattery = null, chrBatGauge = null, chrStartupArp = null, chrServoEnabled = null, chrMcpToken = null, chrLtConfig = null, chrServoLimits = null, chrServoRangeMode = null, chrServoPositions = null, chrBoardKind = null, chrWifiIp = null, chrWifiMac = null, chrAudioCtrl = null, chrAudioData = null, chrAudioCredit = null, chrAudioMetrics = null, chrLedState = null, chrMicLipGain = null, chrLedMouthSync = null, chrLipSyncMode = null, chrMicLipAgc = null, chrSpeakerVolume = null, chrJttsSay = null, chrSanoTts = null, chrOperationMode = null, chrAudioOutput = null, chrBargeIn = null, chrProximity = null, chrProximityTuning = null, chrDeviceName = null, chrAuthPassword = null, chrAvatarBc = null;
 let boardKind = null; // null = unknown (older firmware), else 0/1/2 from BOARD_*
 let batteryPollTimer = null;  // setInterval handle while connected
 let jttsInitialJson = '';  // last read JSON, used to detect Apply-time changes
@@ -1422,6 +1428,7 @@ function updateStatus(data) {
   document.getElementById('flag-en'  ).classList.toggle('set', !!(flags & 0x08));
   document.getElementById('flag-gkey').classList.toggle('set', !!(flags & 0x10));
   document.getElementById('flag-prov').classList.toggle('set', !!(flags & 0x20));
+  document.getElementById('flag-xkey').classList.toggle('set', !!(flags & 0x40));
   const wifiDot = document.getElementById('wifi-dot');
   wifiDot.className = 'dot ' + (wifi ? 'wifi-connected' : '');
   document.getElementById('wifi-label').textContent = wifi ? 'Wi-Fi: 接続中' : 'Wi-Fi: 切断中';
@@ -1905,6 +1912,7 @@ function applyCapabilityGating() {
   const hasOpenAiKey = !!chrKey;
   const hasGemini = !!(chrProvider && chrGeminiKey);
   const hasXiaozhi = !!(chrProvider && chrXiaozhiUrl && chrXiaozhiToken);
+  const hasXai = !!(chrProvider && chrXaiKey);
   const hasEnable = !!chrEn;
   const hasRtpEnable = !!chrRtpEn;
   const hasBatGauge = !!chrBatGauge;
@@ -1928,6 +1936,9 @@ function applyCapabilityGating() {
   // Hide the XiaoZhi provider choice entirely on firmware that lacks its chrs.
   const xzOption = document.querySelector('#provider option[value="2"]');
   if (xzOption) xzOption.hidden = !hasXiaozhi;
+  setVisible('label[for="xai-apikey"], #xai-apikey', hasXai);
+  const grokOption = document.querySelector('#provider option[value="3"]');
+  if (grokOption) grokOption.hidden = !hasXai;
   setVisible('label[for="apikey"], #apikey', hasOpenAiKey);
   setVisible('label.toggle-label[for="openai-enabled"]', hasEnable);
   setVisible('#openai-enabled + span', hasEnable);
@@ -2777,6 +2788,7 @@ document.getElementById('btn-connect').addEventListener('click', async () => {
       ['otaData',    CHR_OTA_DATA],
       ['provider',   CHR_PROVIDER],
       ['geminiKey',  CHR_GEMINI_KEY],
+      ['xaiKey',     CHR_XAI_KEY],
       ['xiaozhiUrl', CHR_XIAOZHI_URL],
       ['xiaozhiToken', CHR_XIAOZHI_TOKEN],
       ['faceConfig', CHR_FACE_CONFIG],
@@ -2836,6 +2848,7 @@ document.getElementById('btn-connect').addEventListener('click', async () => {
     chrOtaData  = found.otaData  ?? null;
     chrProvider = found.provider ?? null;
     chrGeminiKey= found.geminiKey?? null;
+    chrXaiKey   = found.xaiKey   ?? null;
     chrXiaozhiUrl = found.xiaozhiUrl ?? null;
     chrXiaozhiToken = found.xiaozhiToken ?? null;
     chrFaceConfig = found.faceConfig ?? null;
@@ -3160,7 +3173,7 @@ document.getElementById('btn-connect').addEventListener('click', async () => {
         const sel = document.getElementById('provider');
         sel.value = String(provider);
         sel.dataset.initial = String(provider);
-        log(`プロバイダ: ${provider === 1 ? 'Gemini Live' : 'OpenAI Realtime'}`);
+        log(`プロバイダ: ${['OpenAI Realtime', 'Gemini Live', 'XiaoZhi', 'xAI Grok Voice'][provider] ?? provider}`);
       } catch (e) {
         log(`プロバイダ取得失敗: ${e.message}`, 'err');
       }
@@ -3260,7 +3273,7 @@ function onDisconnected() {
   ledStateLoaded = false;
   clearTimeout(micLipWriteTimer); micLipWriteTimer = null;
   micLipLoaded = false;
-  chrSsid = chrPass = chrKey = chrApply = chrStatus = chrKx = chrEn = chrRtpEn = chrJttsIdleEn = chrJtts = chrOtaCtrl = chrOtaData = chrProvider = chrGeminiKey = chrXiaozhiUrl = chrXiaozhiToken = chrFaceConfig = chrBattery = chrBatGauge = chrServoEnabled = chrMcpToken = chrLtConfig = chrServoLimits = chrServoRangeMode = chrServoPositions = chrBoardKind = chrWifiIp = chrWifiMac = chrAudioCtrl = chrAudioData = chrAudioCredit = chrAudioMetrics = chrLedState = chrMicLipGain = chrLedMouthSync = chrLipSyncMode = chrMicLipAgc = chrSpeakerVolume = chrJttsSay = chrOperationMode = chrAudioOutput = chrBargeIn = chrAvatarBc = null;
+  chrSsid = chrPass = chrKey = chrApply = chrStatus = chrKx = chrEn = chrRtpEn = chrJttsIdleEn = chrJtts = chrOtaCtrl = chrOtaData = chrProvider = chrGeminiKey = chrXaiKey = chrXiaozhiUrl = chrXiaozhiToken = chrFaceConfig = chrBattery = chrBatGauge = chrServoEnabled = chrMcpToken = chrLtConfig = chrServoLimits = chrServoRangeMode = chrServoPositions = chrBoardKind = chrWifiIp = chrWifiMac = chrAudioCtrl = chrAudioData = chrAudioCredit = chrAudioMetrics = chrLedState = chrMicLipGain = chrLedMouthSync = chrLipSyncMode = chrMicLipAgc = chrSpeakerVolume = chrJttsSay = chrOperationMode = chrAudioOutput = chrBargeIn = chrAvatarBc = null;
   if (typeof refreshAvbcButton === 'function') refreshAvbcButton();
   boardKind = null;
   aesKey = null;
@@ -3310,6 +3323,7 @@ document.getElementById('btn-apply').addEventListener('click', async () => {
   const pass = document.getElementById('password').value;
   const key  = document.getElementById('apikey').value.trim();
   const gkey = document.getElementById('gemini-apikey').value.trim();
+  const xkey = document.getElementById('xai-apikey').value.trim();
   const xzUrl = document.getElementById('xiaozhi-url').value.trim();
   const xzToken = document.getElementById('xiaozhi-token').value.trim();
 
@@ -3335,6 +3349,10 @@ document.getElementById('btn-apply').addEventListener('click', async () => {
     if (gkey && chrGeminiKey) {
       await writeEncrypted(chrGeminiKey, strToBytes(gkey));
       log('Gemini キー 書き込み完了', 'ok');
+    }
+    if (xkey && chrXaiKey) {
+      await writeEncrypted(chrXaiKey, strToBytes(xkey));
+      log('xAI キー 書き込み完了', 'ok');
     }
     if (xzUrl && chrXiaozhiUrl) {
       await writeEncrypted(chrXiaozhiUrl, strToBytes(xzUrl));

@@ -47,6 +47,7 @@ const std::array<SettingDescriptor, kSettingCount> kTable = {{
     str_row("password",       "wifi_pass",  ApplyKind::Staged, &DeviceConfig::wifi_password, 64, true),
     str_row("api-key",        "openai_key", ApplyKind::Staged, &DeviceConfig::openai_api_key, 256, true),
     str_row("gemini-api-key", "gemini_key", ApplyKind::Staged, &DeviceConfig::gemini_api_key, 256, true),
+    str_row("xai-api-key",    "xai_key",    ApplyKind::Staged, &DeviceConfig::xai_api_key, 256, true),
     str_row("xiaozhi-url",    "xz_url",     ApplyKind::Staged, &DeviceConfig::xiaozhi_url, 256),
     str_row("xiaozhi-token",  "xz_token",   ApplyKind::Staged, &DeviceConfig::xiaozhi_token, 256, true),
     str_row("jtts-config",    "jtts_cfg",   ApplyKind::Staged, &DeviceConfig::jtts_config_json, 960),
@@ -128,7 +129,7 @@ const std::array<SettingDescriptor, kSettingCount> kTable = {{
             [](DeviceConfig& c, std::uint32_t v) { c.proximity_offset = static_cast<std::uint16_t>(v); }),
     // --- enums (u8 on the wire, bounds-checked, out-of-range keeps default) -
     num_row("provider",       "provider",   ValueType::U8, ApplyKind::Staged,
-            static_cast<std::uint32_t>(Provider::XiaoZhi), false,
+            static_cast<std::uint32_t>(Provider::Grok), false,
             [](const DeviceConfig& c) -> std::uint32_t { return static_cast<std::uint32_t>(c.provider); },
             [](DeviceConfig& c, std::uint32_t v) { c.provider = static_cast<Provider>(v); }),
     num_row("operation-mode", "op_mode",    ValueType::U8, ApplyKind::Staged,

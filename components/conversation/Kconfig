@@ -17,6 +17,27 @@ menu "Stackchan Conversation"
         string "OpenAI Realtime voice"
         default "alloy"
 
+    config STACKCHAN_XAI_API_KEY
+        string "xAI API key (Grok)"
+        default ""
+        help
+            Fallback xAI API key for the Grok Voice Agent provider, used only
+            when no key has been set over BLE / Wi-Fi. Leave empty here and
+            set the real value in sdkconfig.defaults.local (gitignored).
+
+    config STACKCHAN_XAI_REALTIME_MODEL
+        string "xAI Grok voice model"
+        default "grok-voice-latest"
+        help
+            Model passed as ?model= on wss://api.x.ai/v1/realtime. Pin a
+            versioned name (e.g. grok-voice-3.0) for stability.
+
+    config STACKCHAN_XAI_VOICE
+        string "xAI Grok voice"
+        default "eve"
+        help
+            Built-in voice (eve, ara, rex, sal, leo) or a custom voice ID.
+
     config STACKCHAN_CONV_WS_RX_BUFFER
         int "WebSocket RX reassembly buffer size (bytes)"
         default 131072

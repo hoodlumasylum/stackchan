@@ -23,6 +23,7 @@ enum class Provider : std::uint8_t {
     OpenAi = 0,   // OpenAI Realtime API (wss://api.openai.com/v1/realtime)
     Gemini = 1,   // Google Gemini Live API (wss://generativelanguage.googleapis.com/...)
     XiaoZhi = 2,  // XiaoZhi AI server (ws://<host>:8000/xiaozhi/v1/)
+    Grok = 3,     // xAI Grok Voice Agent (wss://api.x.ai/v1/realtime, OpenAI Realtime compatible)
 };
 
 // Avatar's primary "what is the robot doing right now?" mode. Replaces the
@@ -31,7 +32,7 @@ enum class Provider : std::uint8_t {
 // mutually-exclusive modes:
 //   MicLipSync   ‐ mic input drives the mouth; no jtts babble, no conversation
 //   JttsRandom   ‐ random jtts phrases at idle; no conversation
-//   Conversation ‐ realtime AI conversation (OpenAI / Gemini / XiaoZhi)
+//   Conversation ‐ realtime AI conversation (OpenAI / Gemini / XiaoZhi / Grok)
 // app_main derives the legacy openai_enabled / jtts_idle_enabled gates from
 // this at boot so the rest of the code path stays unchanged.
 enum class OperationMode : std::uint8_t {
@@ -97,7 +98,8 @@ enum class LipSyncMode : std::uint8_t {
 // reorder or renumber; append new entries at the end only.
 static_assert(static_cast<int>(Provider::OpenAi) == 0 &&
               static_cast<int>(Provider::Gemini) == 1 &&
-              static_cast<int>(Provider::XiaoZhi) == 2,
+              static_cast<int>(Provider::XiaoZhi) == 2 &&
+              static_cast<int>(Provider::Grok) == 3,
               "Provider numbering is a BLE/HTTP/NVS wire contract — append only");
 static_assert(static_cast<int>(OperationMode::MicLipSync) == 0 &&
               static_cast<int>(OperationMode::JttsRandom) == 1 &&
@@ -116,6 +118,9 @@ struct DeviceConfig {
     std::string wifi_password;
     std::string openai_api_key;
     std::string gemini_api_key;
+    // xAI API key for the Grok Voice Agent (provider == Grok). Stored
+    // separately like the Gemini key so users can flip between providers.
+    std::string xai_api_key;
     // XiaoZhi AI server: full WebSocket endpoint (ws://<host>:8000/xiaozhi/v1/)
     // and optional bearer token. Used only when provider == XiaoZhi; an empty
     // URL disables the conversation task for that provider.
@@ -147,7 +152,7 @@ struct DeviceConfig {
     // consumer (main/speech.cpp) parses on startup. Empty → compile-time
     // defaults. Capped at ~960 bytes plain text on the wire.
     std::string jtts_config_json;
-    // Conversation system prompt / persona for the OpenAI / Gemini backends
+    // Conversation system prompt / persona for the OpenAI / Gemini / Grok backends
     // (XiaoZhi's server owns its own persona, so it's ignored there). Empty →
     // the firmware's built-in default instructions. Settable over Wi-Fi.
     std::string system_prompt;
