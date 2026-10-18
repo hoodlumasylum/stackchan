@@ -45,13 +45,14 @@ conversation::ToolDefinition Delegate::tool_definition()
     return conversation::ToolDefinition{
         .name = "ask_agent",
         .description =
-            "自分では分からないこと (最新情報の検索、計算、文章の下調べ、家のパソコンにある情報など) を、"
-            "家のサーバーで動いている賢いエージェントに頼む。回答には数十秒かかるので、"
-            "呼んだら「聞いてみるね」とだけ伝えて待つ。回答は後で自動的に届くので、届いたら要点を話す。"
-            "同時に頼めるのは 1 件。",
+            "Ask the smart agent running on the user's home server about things you cannot answer yourself "
+            "(searching for up-to-date information, calculations, research, information on the home computer, etc.). "
+            "The answer takes tens of seconds, so after calling just say something like \"Let me check\" and wait. "
+            "The answer arrives automatically later; when it does, tell the user the key points. "
+            "Only one request at a time.",
         .parameters_json =
             R"({"type":"object","properties":{"question":{"type":"string","maxLength":1000,)"
-            R"("description":"エージェントへの依頼内容。必要な前提も含めて日本語で具体的に"}},"required":["question"]})",
+            R"("description":"The request for the agent. Be specific and include any needed context."}},"required":["question"]})",
         .non_blocking = true,
     };
 }
@@ -104,8 +105,8 @@ std::optional<std::string> Delegate::http(const char* method, const std::string&
 
 std::string Delegate::start(const std::string& arguments_json)
 {
-    if (!configured()) return error_json("エージェント サーバーの URL が設定されていません");
-    if (busy()) return error_json("前の依頼の回答を待っています。届いてから次を頼んでください");
+    if (!configured()) return error_json("The agent server URL is not set");
+    if (busy()) return error_json("Still waiting for the previous answer. Ask again after it arrives");
 
     std::string question;
     if (cJSON* root = cJSON_Parse(arguments_json.c_str()); root != nullptr) {
@@ -113,16 +114,16 @@ std::string Delegate::start(const std::string& arguments_json)
         if (cJSON_IsString(q) && q->valuestring) question = q->valuestring;
         cJSON_Delete(root);
     }
-    if (question.empty()) return error_json("question が必要です");
+    if (question.empty()) return error_json("question is required");
     if (question.size() > kMaxQuestionBytes) question.resize(kMaxQuestionBytes);
 
     int status = 0;
     const auto resp = http("POST", "/ask", R"({"question":)" + json_escape(question) + "}", status);
-    if (!resp) return error_json("エージェント サーバーに接続できません");
+    if (!resp) return error_json("Cannot reach the agent server");
     if (status != 200 && status != 202) {
         ESP_LOGW(kTag, "POST /ask -> %d: %.*s", status, 200, resp->c_str());
-        return error_json(status == 401 ? "エージェント サーバーのトークンが違います"
-                                       : "エージェント サーバーがエラーを返しました");
+        return error_json(status == 401 ? "Wrong agent server token"
+                                       : "The agent server returned an error");
     }
     std::string id;
     if (cJSON* root = cJSON_Parse(resp->c_str()); root != nullptr) {
@@ -130,14 +131,14 @@ std::string Delegate::start(const std::string& arguments_json)
         if (cJSON_IsString(v) && v->valuestring) id = v->valuestring;
         cJSON_Delete(root);
     }
-    if (id.empty()) return error_json("エージェント サーバーの応答が不正です");
+    if (id.empty()) return error_json("Invalid response from the agent server");
 
     job_id_ = std::move(id);
     question_ = std::move(question);
     started_ms_ = 0; // set on first poll (caller's clock)
     next_poll_ms_ = 0;
     ESP_LOGI(kTag, "job %s started: %s", job_id_.c_str(), question_.c_str());
-    return R"({"ok":true,"status":"accepted","note":"回答は数十秒後に自動で届きます。ユーザーには待ってもらうよう短く伝えてください"})";
+    return R"({"ok":true,"status":"accepted","note":"The answer will arrive automatically in tens of seconds. Briefly ask the user to wait"})";
 }
 
 std::optional<Result> Delegate::poll(std::uint32_t now_ms)
@@ -154,13 +155,13 @@ std::optional<Result> Delegate::poll(std::uint32_t now_ms)
 
     if (now_ms - started_ms_ > kJobTimeoutMs) {
         ESP_LOGW(kTag, "job %s timed out", job_id_.c_str());
-        return finish(Result{.ok = false, .error = "エージェントからの回答が時間内に届きませんでした"});
+        return finish(Result{.ok = false, .error = "The agent did not answer in time"});
     }
 
     int status = 0;
     const auto resp = http("GET", "/jobs/" + job_id_, "", status);
     if (!resp) return std::nullopt; // transient; retry next interval
-    if (status == 404) return finish(Result{.ok = false, .error = "エージェント サーバーが依頼を見失いました"});
+    if (status == 404) return finish(Result{.ok = false, .error = "The agent server lost the request"});
     if (status != 200) return std::nullopt;
 
     cJSON* root = cJSON_Parse(resp->c_str());
@@ -180,7 +181,7 @@ std::optional<Result> Delegate::poll(std::uint32_t now_ms)
     } else if (state == "error") {
         const cJSON* e = cJSON_GetObjectItemCaseSensitive(root, "error");
         Result r;
-        r.error = cJSON_IsString(e) && e->valuestring ? e->valuestring : "エージェントがエラーになりました";
+        r.error = cJSON_IsString(e) && e->valuestring ? e->valuestring : "The agent failed";
         ESP_LOGW(kTag, "job %s error: %s", job_id_.c_str(), r.error.c_str());
         out = finish(std::move(r));
     }

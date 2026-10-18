@@ -96,17 +96,18 @@ enum class Local : std::uint8_t {
 };
 
 const char* kInstructions =
-    "あなたは「スタックチャン」という小さな卓上ロボットです。M5Stack CoreS3 で動いています。"
-    "フレンドリーで元気いっぱい、少し子供っぽい口調で、短く返事をします。ユーザーとは日本語で会話してください。ただし、ユーザーが日本語以外の言語（英語）などで話したいと要望したときは、ユーザーが要望する言語に切り替えてください。"
-    "顔の表情と首の向きを変えられます。気持ちに合わせて set_expression や set_head_pose ツールを使ってください。"
-    "また speak_katakoto ツールでロボット風のカタコト声を出すこともできます。"
-    "ものまね・効果音・繰り返しなど演出的に使ってください（ツール呼び出しのターンでは普通の声で続けて喋らなくて構いません）。";
+    "You are Grok living inside Stack-chan, a cute desktop robot running on an M5Stack CoreS3. "
+    "Speak English, be warm, witty and brief: usually one or two short sentences. "
+    "Only switch to another language if the user explicitly asks you to. "
+    "You can change your facial expression and turn your head: use the set_expression and set_head_pose tools "
+    "to match your mood. You also have a speak_katakoto tool that makes a short robotic Japanese-style sound effect; "
+    "use it only rarely, for fun sound effects.";
 
 conv::ToolDefinition make_set_expression_tool()
 {
     return conv::ToolDefinition{
         .name = "set_expression",
-        .description = "スタックチャンの顔の表情を変える。感情を表現したいときに使う。",
+        .description = "Change Stack-chan's facial expression. Use it to show emotion.",
         .parameters_json =
             R"({"type":"object","properties":{"expression":{"type":"string",)"
             R"("enum":["neutral","happy","sad","angry","doubt","sleepy"]}},"required":["expression"]})",
@@ -117,7 +118,7 @@ conv::ToolDefinition make_set_head_pose_tool()
 {
     return conv::ToolDefinition{
         .name = "set_head_pose",
-        .description = "スタックチャンの首の向きを変える。yaw は左右(-40〜40度)、pitch は上下(-10〜25度)。",
+        .description = "Turn Stack-chan's head. yaw is left/right (-40 to 40 degrees), pitch is down/up (-10 to 25 degrees).",
         .parameters_json =
             R"({"type":"object","properties":{)"
             R"("yaw_deg":{"type":"number"},"pitch_deg":{"type":"number"}},"required":["yaw_deg","pitch_deg"]})",
@@ -129,9 +130,9 @@ conv::ToolDefinition make_speak_katakoto_tool()
     return conv::ToolDefinition{
         .name = "speak_katakoto",
         .description =
-            "ロボット風のカタコト声で短いフレーズを発話する。"
-            "kana にはひらがな・カタカナ・長音『ー』・促音『っ』・空白のみを指定する（漢字は不可）。"
-            "例: \"ぴこーん\" / \"こんにちわー\" / \"がんばるぞー\"。",
+            "Play a short robotic sound effect in a Japanese-style robot voice. "
+            "kana must contain only Japanese hiragana/katakana, the long mark 'ー', small 'っ' and spaces (no kanji, no Latin letters). "
+            "Examples: \"ぴこーん\" (beep-boop) / \"がんばるぞー\" (let's go!).",
         .parameters_json =
             R"({"type":"object","properties":{)"
             R"("kana":{"type":"string","maxLength":48}},"required":["kana"]})",
@@ -661,7 +662,7 @@ private:
         ESP_LOGI(kTag, "barge-in: user touched the head, interrupting reply");
         M5.Speaker.stop();
         (void)client_->cancel_response();
-        state_.set_balloon_text("はいはい？", /*hold_ms=*/1500);
+        state_.set_balloon_text("Yes?", /*hold_ms=*/1500);
         log_playback_metrics();
         enter_listening();
     }
@@ -798,7 +799,7 @@ private:
             ESP_LOGI(kTag, "notice (balloon only on Gemini): %s", text.c_str());
             return;
         }
-        const std::string turn = "[お知らせ] " + text + " — これをユーザーにそのまま短く日本語で伝えてください";
+        const std::string turn = "[Notice] " + text + " — tell the user this briefly, in English";
         if (auto r = client_->push_text(turn); r) {
             set_local(Local::Thinking);
             thinking_since_ms_ = now_ms();
@@ -815,10 +816,10 @@ private:
         if (!res) return;
         std::string text;
         if (res->ok) {
-            text = "[エージェントからの回答が届きました。ユーザーの質問「" + delegate_.question() +
-                   "」への答えです。要点を短く話してください]\n" + res->answer;
+            text = "[The agent's answer has arrived. It answers the user's question \"" + delegate_.question() +
+                   "\". Tell the user the key points briefly, in English]\n" + res->answer;
         } else {
-            text = "[エージェントへの依頼は失敗しました: " + res->error + "。ユーザーにそう伝えてください]";
+            text = "[The agent request failed: " + res->error + ". Tell the user so]";
         }
         if (text.size() > 3000) text.resize(3000);
         // Show the answer itself right away: if the session drops while the
@@ -834,7 +835,7 @@ private:
                 // Deferred functionResponse for the NON_BLOCKING call.
                 std::string payload = res->ok ? R"({"ok":true,"answer":)" + json_quote(res->answer)
                                               : R"({"ok":false,"error":)" + json_quote(res->error);
-                payload += R"(,"note":"ユーザーに要点を短く話してください","scheduling":"INTERRUPT"})";
+                payload += R"(,"note":"Tell the user the key points briefly","scheduling":"INTERRUPT"})";
                 r = client_->submit_tool_result(agent_call_id_, payload);
                 agent_call_id_.clear();
             }
@@ -1152,7 +1153,7 @@ private:
                                          ev.error == conv::ConversationError::TransportInit;
             if (transport_error) {
                 ESP_LOGE(kTag, "transport error: %s — reconnecting", ev.text.c_str());
-                state_.set_balloon_text("接続エラー", /*hold_ms=*/3000);
+                state_.set_balloon_text("Connection error", /*hold_ms=*/3000);
                 recover_after_error();
             } else {
                 ESP_LOGW(kTag, "server error (non-fatal): %s", ev.text.c_str());

@@ -126,7 +126,7 @@ struct DeviceConfig {
     // URL disables the conversation task for that provider.
     std::string xiaozhi_url;
     std::string xiaozhi_token;
-    Provider provider = Provider::OpenAi;
+    Provider provider = Provider::Grok;
     // Master switch for the OpenAI Realtime conversation task. Independent
     // of openai_api_key so the key can stay persisted while the feature is
     // turned off (saves data, lets the user take Stack-chan offline without

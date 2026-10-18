@@ -1211,6 +1211,16 @@ extern "C" void app_main()
     // 諦めてロード (競合する httpd が無いので問題ない)。
     // ESP-NOW モードは httpd も TTS も使わないので、httpd 待ちもボイス ロードも
     // 飛ばして即 demo_loop へ (顔 + 頭部追従のみ)。
+    // First boot (no home Wi-Fi stored): bring the setup hotspot up on its
+    // own so the user sees the English setup screen + QR immediately instead
+    // of having to find "Wi-Fi setup" in the on-device menu. Done here —
+    // after the conversation task etc. are up, but before the httpd wait
+    // below — so httpd gets its 12 KiB internal stack before the HMM voice
+    // load fragments internal RAM.
+    if (!espnow_any && cfg.wifi_ssid.empty()) {
+        ESP_LOGI(kTag, "no Wi-Fi credentials stored — starting setup hotspot");
+        stackchan::app::wifi_enable_ap_mode();
+    }
     if (!espnow_any) {
         for (int i = 0; i < 80 && !stackchan::wifi_config::http_started(); ++i) {
             vTaskDelay(pdMS_TO_TICKS(500));

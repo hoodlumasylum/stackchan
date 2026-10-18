@@ -45,6 +45,11 @@ void copy_field(std::uint8_t* dst, std::size_t cap, const char* src)
 
 std::atomic<bool> g_connected{false};
 std::atomic<bool> g_ap_active{false};
+// False when no home SSID is stored (fresh / erased device). The STA side
+// of the driver still runs in APSTA mode for the first-boot setup hotspot,
+// but there is nothing to connect to, so skip connect / retry attempts —
+// their channel scans would only disturb clients on the setup AP.
+std::atomic<bool> g_sta_configured{false};
 // Cached AP credentials so wifi_ap_info() can serve the on-device QR screen
 // without re-querying the driver. Derived from ESP_MAC_WIFI_STA.
 char g_ap_ssid[33] = {0};
@@ -80,12 +85,14 @@ void event_handler(void* /*arg*/, esp_event_base_t base, int32_t id, void* data)
 {
     if (base == WIFI_EVENT) {
         if (id == WIFI_EVENT_STA_START) {
-            esp_wifi_connect();
+            if (g_sta_configured.load(std::memory_order_acquire)) esp_wifi_connect();
         } else if (id == WIFI_EVENT_STA_DISCONNECTED) {
             g_connected.store(false, std::memory_order_release);
             config::notify_wifi_connected(false);
             wifi_config::notify_wifi_connected(false);
-            if (g_ap_active.load(std::memory_order_acquire) &&
+            if (!g_sta_configured.load(std::memory_order_acquire)) {
+                // No home SSID stored: nothing to retry.
+            } else if (g_ap_active.load(std::memory_order_acquire) &&
                 g_sta_retry_timer != nullptr) {
                 esp_timer_stop(g_sta_retry_timer);
                 if (g_ap_client_count.load(std::memory_order_acquire) > 0) {
@@ -109,6 +116,7 @@ void event_handler(void* /*arg*/, esp_event_base_t base, int32_t id, void* data)
             if (left <= 0) {
                 g_ap_client_count.store(0, std::memory_order_release);
                 if (g_ap_active.load(std::memory_order_acquire) &&
+                    g_sta_configured.load(std::memory_order_acquire) &&
                     !g_connected.load(std::memory_order_acquire) &&
                     g_sta_retry_timer != nullptr) {
                     esp_timer_stop(g_sta_retry_timer);
@@ -144,7 +152,8 @@ void event_handler(void* /*arg*/, esp_event_base_t base, int32_t id, void* data)
         static bool sntp_started = false;
         if (!sntp_started) {
             sntp_started = true;
-            setenv("TZ", "JST-9", 1);
+            // UK time (GMT/BST with automatic daylight saving).
+            setenv("TZ", "GMT0BST,M3.5.0/1,M10.5.0", 1);
             tzset();
             esp_sntp_config_t cfg = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
             cfg.start = true;
@@ -167,7 +176,7 @@ void event_handler(void* /*arg*/, esp_event_base_t base, int32_t id, void* data)
                 dt.time.minutes = tm_now.tm_min;
                 dt.time.seconds = tm_now.tm_sec;
                 M5.Rtc.setDateTime(dt);
-                ESP_LOGI(kTag, "SNTP synced → RTC set %04d-%02d-%02d %02d:%02d:%02d JST",
+                ESP_LOGI(kTag, "SNTP synced → RTC set %04d-%02d-%02d %02d:%02d:%02d (local)",
                          dt.date.year, dt.date.month, dt.date.date,
                          dt.time.hours, dt.time.minutes, dt.time.seconds);
             } else {
@@ -233,6 +242,7 @@ void wifi_start(const config::DeviceConfig& cfg)
         return;
     }
 
+    g_sta_configured.store(true, std::memory_order_release);
     wifi_config_t sta_cfg{};
     std::strncpy(reinterpret_cast<char*>(sta_cfg.sta.ssid),
                  cfg.wifi_ssid.c_str(), sizeof(sta_cfg.sta.ssid) - 1);
@@ -441,7 +451,10 @@ void wifi_disable_ap_mode()
     // retry and kick a connect now (harmless error return if an attempt is
     // already in flight or the STA is currently paused-while-client).
     if (g_sta_retry_timer != nullptr) esp_timer_stop(g_sta_retry_timer);
-    if (!g_connected.load(std::memory_order_acquire)) esp_wifi_connect();
+    if (!g_connected.load(std::memory_order_acquire) &&
+        g_sta_configured.load(std::memory_order_acquire)) {
+        esp_wifi_connect();
+    }
     ESP_LOGI(kTag, "AP down");
 }
 
