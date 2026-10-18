@@ -141,25 +141,25 @@
                    !window.AVATAR_DSL_DEFAULT_SOURCE.includes('{{AVATAR_DSL_DEFAULT_SOURCE}}')
                      ? window.AVATAR_DSL_DEFAULT_SOURCE : '');
     if (compilerOk) {
-      setMsg('準備完了 — Ctrl/Cmd+Enter または「コンパイル & 送信」で反映');
+      setMsg('Ready — press Ctrl/Cmd+Enter or "Compile & Send" to apply');
     }
 
     let lastBuf = null; // last successfully-compiled bytecode (for download)
 
     function compileNow() {
       if (!compilerOk) {
-        setMsg('DSL コンパイラ が読込めていないためコンパイルできません', 'err');
+        setMsg('Cannot compile because the DSL compiler is not loaded', 'err');
         return null;
       }
       const t0 = performance.now();
       let buf;
       try { buf = window.AvatarDsl.compile(srcEl.value); }
       catch (e) {
-        setMsg('コンパイル エラー: ' + e.message, 'err');
+        setMsg('Compile error: ' + e.message, 'err');
         return null;
       }
       const compileMs = performance.now() - t0;
-      setMsg(`OK — ${buf.byteLength} bytes, コンパイル ${compileMs.toFixed(1)} ms`, 'ok');
+      setMsg(`OK — ${buf.byteLength} bytes, compiled in ${compileMs.toFixed(1)} ms`, 'ok');
       lastBuf = buf;
       return buf;
     }
@@ -171,20 +171,20 @@
       try {
         const r = await transport.send(u8, onProgress);
         if (r.ok && r.saved != null) {
-          setMsg(`${label}送信完了 — NVS に ${r.saved} バイト保存${r.note || ''}`, 'ok');
-          log(`Avatar DSL 送信 OK (${r.saved} B)`, 'ok');
+          setMsg(`Sent ${label}— saved ${r.saved} bytes to flash${r.note || ''}`, 'ok');
+          log(`Avatar DSL sent OK (${r.saved} B)`, 'ok');
           return true;
         }
         if (r.ok) {
-          setMsg(`${label}送信完了 — レスポンス: ` + r.raw, 'ok');
-          log('Avatar DSL 送信 OK', 'ok');
+          setMsg(`Sent ${label}— response: ` + r.raw, 'ok');
+          log('Avatar DSL sent OK', 'ok');
           return true;
         }
-        setMsg(`${label}送信失敗 — ${r.error || 'unknown'}`, 'err');
-        log(`Avatar DSL 送信失敗: ${r.error}`, 'err');
+        setMsg(`Send failed ${label}— ${r.error || 'unknown'}`, 'err');
+        log(`Avatar DSL send failed: ${r.error}`, 'err');
       } catch (e) {
-        setMsg('送信エラー: ' + e.message, 'err');
-        log('Avatar DSL 送信 失敗: ' + e.message, 'err');
+        setMsg('Send error: ' + e.message, 'err');
+        log('Avatar DSL send failed: ' + e.message, 'err');
       }
       return false;
     }
@@ -195,10 +195,10 @@
       if (!buf) return;
       sendBtn.disabled = true;
       const oldText = sendBtn.textContent;
-      sendBtn.textContent = '送信中…';
+      sendBtn.textContent = 'Sending…';
       try {
         await sendBytes(new Uint8Array(buf), '', (sent, total) => {
-          sendBtn.textContent = `送信中… ${sent}/${total} B`;
+          sendBtn.textContent = `Sending… ${sent}/${total} B`;
         });
       } finally {
         sendBtn.textContent = oldText;
@@ -226,17 +226,17 @@
       srcEl.value = src;
       lastBuf = null;
       if (!transport.isConnected()) {
-        setMsg(transport.notConnectedMsg + ' — テキストだけ反映しました', 'err');
+        setMsg(transport.notConnectedMsg + ' — only the text was applied', 'err');
         return;
       }
       if (presets[0] && name === presets[0].name) {
         try {
           const r = await transport.reset();
-          setMsg(`プリセット「${name}」を読込み — 実機を内蔵デフォルトに復帰` +
+          setMsg(`Loaded preset "${name}" — robot reset to built-in default` +
                  (r.raw ? ` (${r.raw})` : ''), 'ok');
-          log(`Avatar DSL プリセット ${name} (reset)`, 'ok');
+          log(`Avatar DSL preset ${name} (reset)`, 'ok');
         } catch (e) {
-          setMsg('リセット失敗: ' + e.message, 'err');
+          setMsg('Reset failed: ' + e.message, 'err');
         }
       } else {
         await compileAndSend();
@@ -245,17 +245,17 @@
 
     resetBtn.addEventListener('click', async () => {
       if (!transport.isConnected()) { setMsg(transport.notConnectedMsg, 'err'); return; }
-      if (!confirm('実機の顔を firmware 内蔵 デフォルトに戻します (NVS の override を削除)。よろしいですか?')) return;
+      if (!confirm('Reset the robot\'s face to the firmware\'s built-in default (removes the saved override). Are you sure?')) return;
       const oldText = resetBtn.textContent;
       resetBtn.disabled = true;
-      resetBtn.textContent = '送信中…';
+      resetBtn.textContent = 'Sending…';
       try {
         const r = await transport.reset();
-        setMsg(`実機をデフォルト顔に戻しました${r.raw ? ` (${r.raw})` : ''}`, 'ok');
-        log('Avatar DSL リセット', 'ok');
+        setMsg(`Robot face reset to default${r.raw ? ` (${r.raw})` : ''}`, 'ok');
+        log('Avatar DSL reset', 'ok');
       } catch (e) {
-        setMsg('リセット失敗: ' + e.message, 'err');
-        log('Avatar DSL リセット失敗: ' + e.message, 'err');
+        setMsg('Reset failed: ' + e.message, 'err');
+        log('Avatar DSL reset failed: ' + e.message, 'err');
       } finally {
         resetBtn.textContent = oldText;
         resetBtn.disabled = !transport.isConnected();
@@ -289,7 +289,7 @@
       const r = new FileReader();
       r.onload = () => {
         srcEl.value = r.result;
-        setMsg('読込みました — 「コンパイル & 送信」で実機に反映してください');
+        setMsg('Loaded — press "Compile & Send" to apply it on the robot');
       };
       r.readAsText(f);
       e.target.value = '';
@@ -306,9 +306,9 @@
         if (!f) return;
         if (!transport.isConnected()) { setMsg(transport.notConnectedMsg, 'err'); return; }
         const buf = new Uint8Array(await f.arrayBuffer());
-        setMsg(`${f.name} (${buf.length} B) を送信中…`);
+        setMsg(`Sending ${f.name} (${buf.length} B)…`);
         const ok = await sendBytes(buf, `${f.name} `, (sent, total) => {
-          setMsg(`${f.name} 送信中… ${sent}/${total} B`);
+          setMsg(`Sending ${f.name}… ${sent}/${total} B`);
         });
         if (ok) {
           lastBuf = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
@@ -391,7 +391,7 @@
         if (el) el.disabled = !ok;
       }
       const btn = $id('sv-range-mode');
-      btn.textContent = '範囲設定モード: ' + (rangeOn ? 'ON' : 'OFF');
+      btn.textContent = 'Range mode: ' + (rangeOn ? 'ON' : 'OFF');
       btn.disabled = !transport.canToggle();
     }
 
@@ -431,14 +431,14 @@
         refreshUi();
         restartPoll();
         if (on) {
-          log('範囲設定モード: ON (サーボの力が抜けます)', 'ok');
+          log('Range mode: ON (servos relaxed)', 'ok');
         } else {
-          log('範囲設定モード: OFF');
+          log('Range mode: OFF');
           liveYaw = livePitch = -1;
           clearLiveDisplay();
         }
       } catch (e) {
-        log('範囲設定モード切替失敗: ' + e.message, 'err');
+        log('Range mode switch failed: ' + e.message, 'err');
       }
     }
 
@@ -463,7 +463,7 @@
 
     function capture(axis, which) {
       const live = axis === 'yaw' ? liveYaw : livePitch;
-      if (live < 0) { log('まだサーボ位置を取得できていません', 'err'); return; }
+      if (live < 0) { log('Servo position not available yet', 'err'); return; }
       const zeroId = `sv-${axis}-zero`;
       if (which === 'zero') {
         $id(zeroId).value = live;
@@ -525,13 +525,13 @@
     const authClear = $id('btn-auth-password-clear');
     if (authEl && authClear) {
       authClear.addEventListener('click', () => {
-        if (!confirm('認証なし (空欄) に戻します。保存 & 再起動で反映されます。よろしいですか?')) {
+        if (!confirm('Remove the settings password (blank)? It takes effect after Save & Restart. Are you sure?')) {
           return;
         }
         authEl.value = '';
         authEl.dataset.cleared = '1';
         const hintEl = $id('auth-password-state');
-        if (hintEl) hintEl.textContent = '(クリア予約 — 保存で空欄を送信)';
+        if (hintEl) hintEl.textContent = '(will clear — Save sends a blank value)';
       });
     }
   }
@@ -648,12 +648,12 @@
     const state = document.getElementById('prox-state');
     if (!raw || !meter || !state) return;
     if (!st || !st.available) {
-      raw.textContent = '—'; meter.value = 0; state.textContent = 'センサーなし';
+      raw.textContent = '—'; meter.value = 0; state.textContent = 'no sensor';
       return;
     }
     raw.textContent = String(st.raw);
     meter.value = Math.min(PROX_METER_MAX, st.raw);
-    state.textContent = (st.near_now ? '近い' : '遠い') + (st.saturated ? ' (飽和)' : '');
+    state.textContent = (st.near_now ? 'near' : 'far') + (st.saturated ? ' (saturated)' : '');
     state.className = st.near_now ? 'prox-near' : '';
   }
   // 「今の値を near にする」: near = current reading, far = 60 % of it (but
@@ -729,61 +729,61 @@
   }
   // The markup, identical on both pages (inserted by each page at load).
   const PROX_SECTION_HTML = `
-      <h2 class="section-title" id="prox-section-title">近接センサー (CoreS3)</h2>
+      <h2 class="section-title" id="prox-section-title">Proximity sensor (CoreS3)</h2>
       <label class="toggle-label" for="prox-enabled">
         <input type="checkbox" id="prox-enabled">
-        <span>手を近づけると反応する</span>
+        <span>React when a hand comes close</span>
       </label>
-      <p class="hint">画面上辺のセンサーに手を近づけると、うれしい顔になって近接フレーズ (音声タブで設定、無ければ吹き出しのみ) を話します。会話中は反応しません。値は反射光量 (0〜2047) で、既定の前段 (ゲイン x64・15 パルス) では何もないとき 200 前後、既定の閾値は near 335 / far 240 です。すべて即時反映。</p>
+      <p class="hint">Bring a hand close to the sensor at the top edge of the screen and Stack-chan makes a happy face and says a proximity phrase (set on the Sound tab; otherwise just a balloon). It does not react during a conversation. The value is reflected light (0–2047); with the default front end (gain x64, 15 pulses) it is around 200 with nothing nearby, and the default thresholds are near 335 / far 240. Everything applies instantly.</p>
       <div class="prox-live-box">
         <div class="prox-live-row">
-          <span class="prox-live-label">現在値</span>
+          <span class="prox-live-label">Current</span>
           <span id="prox-raw">—</span>
           <span id="prox-state"></span>
           <meter id="prox-meter" min="0" max="${PROX_METER_MAX}" value="0"></meter>
-          <label class="toggle-label" for="prox-live" style="display:inline-flex;margin:0"><input type="checkbox" id="prox-live"><span>リアルタイム更新</span></label>
+          <label class="toggle-label" for="prox-live" style="display:inline-flex;margin:0"><input type="checkbox" id="prox-live"><span>Live update</span></label>
         </div>
         <canvas id="prox-spark" width="360" height="60"></canvas>
         <div class="prox-live-row">
-          <button type="button" id="prox-adopt" class="secondary">今の値を near にする</button>
-          <span class="hint" style="margin:0">赤の点線 = near、緑 = far。接続すると自動で更新が始まります (0.5 秒ごと)。</span>
+          <button type="button" id="prox-adopt" class="secondary">Use current value as near</button>
+          <span class="hint" style="margin:0">Red dotted line = near, green = far. Updates start automatically when connected (every 0.5 s).</span>
         </div>
       </div>
       <div class="prox-grid">
-        <label for="prox-near">near (以上で近い)</label><input type="number" id="prox-near" min="0" max="2047">
-        <label for="prox-far">far (未満で遠い)</label><input type="number" id="prox-far" min="0" max="2047">
-        <label for="prox-hold">判定の連続時間 [ms]</label><input type="number" id="prox-hold" min="0" max="5000">
-        <label for="prox-cooldown">反応の間隔 [s]</label><input type="number" id="prox-cooldown" min="0" max="120">
+        <label for="prox-near">near (at or above = near)</label><input type="number" id="prox-near" min="0" max="2047">
+        <label for="prox-far">far (below = far)</label><input type="number" id="prox-far" min="0" max="2047">
+        <label for="prox-hold">Hold time [ms]</label><input type="number" id="prox-hold" min="0" max="5000">
+        <label for="prox-cooldown">Cooldown [s]</label><input type="number" id="prox-cooldown" min="0" max="120">
       </div>
       <div class="prox-live-row">
-        <button type="button" id="prox-apply">閾値を適用 (即時・再起動なし)</button>
+        <button type="button" id="prox-apply">Apply thresholds (instant, no restart)</button>
         <span id="prox-apply-msg" class="hint" style="margin:0"></span>
       </div>
-      <p class="hint">far は near より小さくしてください (近い→遠いのちらつき防止)。反応が敏感すぎるなら near を上げるか連続時間を伸ばします。上の 4 項目は「閾値を適用」を押した時点で機体に反映・保存されます (ページ下部の保存でも送られます)。</p>
+      <p class="hint">Keep far smaller than near (prevents flicker between near and far). If it is too sensitive, raise near or lengthen the hold time. The 4 values above are applied and saved when you press "Apply thresholds" (they are also sent by Save at the bottom of the page).</p>
       <details id="prox-tuning">
-        <summary>センサー調整モード (受光ゲイン / LED / 測定周期 / オフセット)</summary>
-        <p class="hint">LTR-553 の前段を変えると生の値のスケールが変わります。「現在値を表示」を有効にしたまま値を変えて「センサーに適用」を押し、望む距離で十分な差が出る組み合わせを探してから near / far を決め直してください。到達距離を伸ばすなら ゲイン↑・電流↑・パルス数↑ の順に効きます (飽和したら「飽和」と出ます)。オフセットは何もない時の値 (クロストーク) を引き算します。</p>
+        <summary>Sensor tuning (gain / LED / measurement rate / offset)</summary>
+        <p class="hint">Changing the LTR-553 front end changes the scale of the raw value. With live update on, change values and press "Apply to sensor" to find a combination that gives a clear difference at the distance you want, then set near / far again. To increase range, raise gain, then current, then pulse count ("saturated" is shown when it saturates). The offset subtracts the value seen with nothing nearby (crosstalk).</p>
         <div class="prox-grid">
-          <label for="prox-gain">受光ゲイン</label>
+          <label for="prox-gain">Receiver gain</label>
           <select id="prox-gain"><option value="0">x16</option><option value="1">x32</option><option value="2">x64</option></select>
-          <label for="prox-led-current">LED 電流</label>
+          <label for="prox-led-current">LED current</label>
           <select id="prox-led-current"><option value="0">5 mA</option><option value="1">10 mA</option><option value="2">20 mA</option><option value="3">50 mA</option><option value="4">100 mA</option></select>
           <label for="prox-led-duty">LED duty</label>
           <select id="prox-led-duty"><option value="0">25 %</option><option value="1">50 %</option><option value="2">75 %</option><option value="3">100 %</option></select>
-          <label for="prox-led-freq">LED パルス周波数</label>
+          <label for="prox-led-freq">LED pulse frequency</label>
           <select id="prox-led-freq"><option value="0">30 kHz</option><option value="1">40 kHz</option><option value="2">50 kHz</option><option value="3">60 kHz</option><option value="4">70 kHz</option><option value="5">80 kHz</option><option value="6">90 kHz</option><option value="7">100 kHz</option></select>
-          <label for="prox-pulses">パルス数 (1〜15)</label><input type="number" id="prox-pulses" min="1" max="15">
-          <label for="prox-meas-rate">測定周期</label>
+          <label for="prox-pulses">Pulse count (1–15)</label><input type="number" id="prox-pulses" min="1" max="15">
+          <label for="prox-meas-rate">Measurement rate</label>
           <select id="prox-meas-rate"><option value="7">10 ms</option><option value="0">50 ms</option><option value="1">70 ms</option><option value="2">100 ms</option><option value="3">200 ms</option><option value="4">500 ms</option><option value="5">1000 ms</option><option value="6">2000 ms</option></select>
-          <label for="prox-offset">オフセット (0〜1023)</label><input type="number" id="prox-offset" min="0" max="1023">
+          <label for="prox-offset">Offset (0–1023)</label><input type="number" id="prox-offset" min="0" max="1023">
         </div>
         <div class="prox-live-row">
-          <button type="button" id="prox-tune-apply">センサーに適用</button>
-          <button type="button" id="prox-tune-offset" class="secondary">今の値をオフセットにする</button>
-          <button type="button" id="prox-tune-default" class="secondary">既定値に戻す</button>
+          <button type="button" id="prox-tune-apply">Apply to sensor</button>
+          <button type="button" id="prox-tune-offset" class="secondary">Use current value as offset</button>
+          <button type="button" id="prox-tune-default" class="secondary">Restore defaults</button>
           <span id="prox-tune-msg" class="hint"></span>
         </div>
-        <p class="hint">オフセット: 何もかざしていない状態で「今の値をオフセットにする」→「センサーに適用」すると、床の値 (クロストーク) をチップ内で引き算して 0 付近にできます。ゲインを上げたときは先にこれをやると near / far を小さいままにできます (オフセットは機体ごとに違うので既定値にはしません)。</p>
+        <p class="hint">Offset: with nothing in front of the sensor, press "Use current value as offset" then "Apply to sensor" to subtract the floor value (crosstalk) in the chip so it reads near 0. Do this first after raising the gain to keep near / far small (offsets differ per unit, so there is no default).</p>
       </details>`;
   function proxInsertSection(afterEl) {
     if (!afterEl || document.getElementById('prox-section-title')) return;
@@ -807,7 +807,7 @@
     wrap.innerHTML = PROX_SECTION_HTML;
     afterEl.insertAdjacentElement('afterend', wrap);
     const adopt = document.getElementById('prox-adopt');
-    if (adopt) adopt.addEventListener('click', () => { if (!proxAdoptCurrent()) alert('現在値が無いので「現在値を表示」を先に有効にしてください'); });
+    if (adopt) adopt.addEventListener('click', () => { if (!proxAdoptCurrent()) alert('No current value — turn on live update first'); });
   }
   const PROX_TUNING_DEFAULT = { gain: 2, led_freq: 3, led_duty: 3, led_current: 4, pulses: 15, meas_rate: 0, offset: 0 };
   function proxTuningValues() {
@@ -835,13 +835,13 @@
     const msg = document.getElementById('prox-apply-msg');
     if (!btn) return;
     btn.addEventListener('click', async () => {
-      msg.textContent = '適用中…';
+      msg.textContent = 'Applying…';
       try {
         const v = proxFormValues();
         await apply(v);
-        msg.textContent = `適用しました (near=${v.near} far=${v.far} hold=${v.hold_ms}ms cooldown=${v.cooldown_s}s)`;
+        msg.textContent = `Applied (near=${v.near} far=${v.far} hold=${v.hold_ms}ms cooldown=${v.cooldown_s}s)`;
         proxDrawHistory();
-      } catch (e) { msg.textContent = '失敗: ' + e.message; }
+      } catch (e) { msg.textContent = 'Failed: ' + e.message; }
     });
   }
   // apply(values) → Promise; the page supplies the transport.
@@ -851,20 +851,20 @@
     const dflt = document.getElementById('prox-tune-default');
     if (!btn) return;
     btn.addEventListener('click', async () => {
-      msg.textContent = '適用中…';
-      try { await apply(proxTuningValues()); msg.textContent = '適用しました — near / far を決め直してください'; }
-      catch (e) { msg.textContent = '失敗: ' + e.message; }
+      msg.textContent = 'Applying…';
+      try { await apply(proxTuningValues()); msg.textContent = 'Applied — please set near / far again'; }
+      catch (e) { msg.textContent = 'Failed: ' + e.message; }
     });
-    dflt.addEventListener('click', () => { proxFillTuning(PROX_TUNING_DEFAULT); msg.textContent = '既定値を入れました (未適用)'; });
+    dflt.addEventListener('click', () => { proxFillTuning(PROX_TUNING_DEFAULT); msg.textContent = 'Defaults filled in (not applied yet)'; });
     const offBtn = document.getElementById('prox-tune-offset');
     if (offBtn) offBtn.addEventListener('click', () => {
       // The chip subtracts the offset from the raw count, so the reading
       // shown already has the current offset removed: new = old + reading.
       const raw = Number(document.getElementById('prox-raw').textContent);
-      if (!Number.isFinite(raw)) { msg.textContent = '現在値がありません (接続してリアルタイム更新を待ってください)'; return; }
+      if (!Number.isFinite(raw)) { msg.textContent = 'No current value (connect and wait for live update)'; return; }
       const cur = Number(document.getElementById('prox-offset').value) || 0;
       document.getElementById('prox-offset').value = Math.min(1023, cur + raw);
-      msg.textContent = `オフセット ${Math.min(1023, cur + raw)} を入れました — 「センサーに適用」で反映`;
+      msg.textContent = `Filled in offset ${Math.min(1023, cur + raw)} — press "Apply to sensor"`;
     });
   }
 
@@ -880,7 +880,7 @@
   // from least to most stable; picking channel C shows C and everything
   // after it. Add a stage in BOTH files.
   const CHANNELS = ['alpha', 'beta', 'rc', 'stable'];
-  const CHANNEL_LABELS = { alpha: 'アルファ', beta: 'ベータ', rc: 'RC', stable: '正式' };
+  const CHANNEL_LABELS = { alpha: 'Alpha', beta: 'Beta', rc: 'RC', stable: 'Stable' };
   const CHANNEL_PREF_KEY = 'stackchan.releaseChannel';
   const TAG_RE = /^v(\d+)\.(\d+)\.(\d+)(?:-(alpha|beta|rc)\.(\d+))?$/;
 

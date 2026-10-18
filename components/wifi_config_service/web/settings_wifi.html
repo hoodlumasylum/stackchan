@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Stack-chan 設定 (Wi-Fi)</title>
+<title>Stack-chan Settings (Wi-Fi)</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -218,6 +218,11 @@
   button:disabled { opacity: 0.45; cursor: not-allowed; }
   #btn-refresh { background: #1976d2; color: white; }
   #btn-apply   { background: #388e3c; color: white; }
+  .quick-setup { border: 2px solid #388e3c; border-radius: 8px; padding: 0.8rem 1rem 1rem; margin-bottom: 0.5rem; }
+  #btn-apply-main { display: block; width: 100%; margin-top: 1rem; padding: 0.9rem 1rem;
+                    font-size: 1.2rem; font-weight: bold; background: #388e3c; color: white;
+                    border: none; border-radius: 8px; cursor: pointer; }
+  #btn-apply-main:disabled { opacity: 0.5; cursor: default; }
   .log {
     margin-top: 1.5rem;
     background: #1e1e1e;
@@ -341,8 +346,8 @@
 </head>
 <body>
 <div class="card">
-  <h1>🤖 Stack-chan 設定 (Wi-Fi)</h1>
-  <p class="subtitle">HTTP 経由で Wi-Fi と API キーを設定します</p>
+  <h1>🤖 Stack-chan Settings</h1>
+  <p class="subtitle">Set up Wi-Fi and your xAI API key</p>
 
   <div id="ap-banner" hidden style="
        background:#fff3cd;
@@ -353,29 +358,25 @@
        border-radius:6px;
        font-size:0.9rem;
        line-height:1.4;">
-    <strong>⚠ SoftAP プロビジョニング モード</strong> — Wi-Fi <strong>STA が未接続</strong>です。
-    このページは device 自身の AP <code>http://192.168.4.1/</code> 経由で表示されており、
-    <em>認証パスワードは一時的に無効化</em> されています (物理ボタンで AP を有効化
-    した ≒ 本体アクセス済み)。まず「接続」タブで家庭 Wi-Fi の SSID / パスワードを
-    設定 → 保存 &amp; 再起動してください。ファームを更新する場合は、STA 未接続では
-    リリース取得 (device side fetch) が使えないため、「メンテ」タブの
-    <strong>ローカル ファイル アップロード</strong> を使用してください。
+    <strong>⚠ Setup hotspot mode</strong> — Stack-chan is <strong>not connected to your home Wi-Fi</strong> yet. This page is being served from the robot's own hotspot <code>http://192.168.4.1/</code> , so
+    <em>the settings password is temporarily disabled</em> (you turned on setup mode on the device itself). Enter your home Wi-Fi name, Wi-Fi password and xAI API key below, then press Save &amp; Restart. To update firmware without home Wi-Fi, use
+    <strong>Local file upload</strong> on the Maintenance tab.
   </div>
 
   <div class="page-header">
     <div class="status-bar" style="flex:1 1 auto;margin:0">
       <span class="dot" id="http-dot"></span>
-      <span id="http-label">状態取得中…</span>
+      <span id="http-label">Loading status…</span>
       <span class="dot" id="wifi-dot" style="margin-left:0.75rem"></span>
       <span id="wifi-label">Wi-Fi: —</span>
       <span class="flags">
-        <span class="flag" id="flag-ssid" title="SSID 設定済み">S</span>
-        <span class="flag" id="flag-pass" title="Password 設定済み">P</span>
-        <span class="flag" id="flag-key"  title="OpenAI key 設定済み">K</span>
-        <span class="flag" id="flag-en"   title="OpenAI 有効">O</span>
-        <span class="flag" id="flag-gkey" title="Gemini key 設定済み">G</span>
+        <span class="flag" id="flag-ssid" title="Wi-Fi name set">S</span>
+        <span class="flag" id="flag-pass" title="Wi-Fi password set">P</span>
+        <span class="flag" id="flag-key"  title="OpenAI key set">K</span>
+        <span class="flag" id="flag-en"   title="OpenAI enabled">O</span>
+        <span class="flag" id="flag-gkey" title="Gemini key set">G</span>
         <span class="flag" id="flag-prov" title="Provider = Gemini">P</span>
-        <span class="flag" id="flag-xkey" title="xAI key 設定済み">X</span>
+        <span class="flag" id="flag-xkey" title="xAI key set">X</span>
       </span>
     </div>
     <div id="header-info">
@@ -383,103 +384,109 @@
       <span class="key" style="margin-left:0.6rem">Board</span><span class="val" id="hdr-board">—</span>
     </div>
     <div class="actions">
-      <button id="btn-refresh" type="button">状態を再取得</button>
-      <button id="btn-apply" type="button">保存 &amp; 再起動</button>
+      <button id="btn-refresh" type="button">Refresh status</button>
+      <button id="btn-apply" type="button">Save &amp; Restart</button>
     </div>
   </div>
 
   <p class="instructions">
-    ℹ️ タブを切り替えて設定 → <strong>保存 &amp; 再起動</strong> で確定。
-    接続後、即反映する項目 (アバター DSL / LT) は個別ボタンが付いています。
+    ℹ️ Change settings on any tab, then press <strong>Save &amp; Restart</strong> to apply. Items that apply instantly (avatar DSL / LT) have their own buttons.
   </p>
 
   <nav class="tabs" role="tablist">
-    <button data-tab="conn"   class="active" role="tab">接続</button>
-    <button data-tab="avatar"             role="tab">アバター</button>
-    <button data-tab="audio"              role="tab">音声</button>
-    <button data-tab="chat"               role="tab">会話</button>
-    <button data-tab="device"             role="tab">デバイス</button>
-    <button data-tab="maint"              role="tab">メンテ</button>
+    <button data-tab="conn"   class="active" role="tab">Setup</button>
+    <button data-tab="avatar"             role="tab">Avatar</button>
+    <button data-tab="audio"              role="tab">Sound</button>
+    <button data-tab="chat"               role="tab">Chat</button>
+    <button data-tab="device"             role="tab">Device</button>
+    <button data-tab="maint"              role="tab">Maint.</button>
   </nav>
 
   <!-- ===== 接続 ===== -->
   <section class="tab-panel active" data-tab="conn">
+  <div class="quick-setup">
+    <h2 class="section-title" style="margin-top:0">Quick setup</h2>
+    <p class="hint" style="margin-bottom:0.5rem">
+      Fill in these 3 fields and press the big green button. Stack-chan restarts,
+      joins your Wi-Fi and starts chatting with Grok.
+    </p>
+    <label for="ssid">Wi-Fi name (SSID)</label>
+    <input type="text" id="ssid" maxlength="32" placeholder="Your home Wi-Fi name" autocomplete="off" autocapitalize="off" spellcheck="false">
+
+    <label for="password">Wi-Fi password</label>
+    <input type="password" id="password" maxlength="64" placeholder="(leave blank to keep)">
+
+    <label for="xai-apikey">xAI API key</label>
+    <input type="password" id="xai-apikey" maxlength="256" placeholder="xai-… (leave blank to keep)" autocomplete="off">
+    <p class="hint">Get a key at <a href="https://console.x.ai/" target="_blank" rel="noopener">console.x.ai</a>. Blank fields keep the saved value.</p>
+
+    <button id="btn-apply-main" type="button">Save &amp; Restart</button>
+  </div>
+
+  <h2 class="section-title" style="margin-top:1.5rem">Advanced (optional)</h2>
   <div class="device-info" id="device-info">
     <div class="row"><span class="key">Firmware</span><span class="val" id="dis-fw">—</span></div>
     <div class="row"><span class="key">ESP-IDF</span><span class="val" id="dis-idf">—</span></div>
     <div class="row"><span class="key">IP</span><span class="val" id="dis-ip">—</span></div>
-    <div class="row"><span class="key">基板</span><span class="val" id="dis-board">—</span></div>
-    <div class="row" id="dis-battery-row"><span class="key">バッテリー</span><span class="val" id="dis-battery">—</span></div>
+    <div class="row"><span class="key">Board</span><span class="val" id="dis-board">—</span></div>
+    <div class="row" id="dis-battery-row"><span class="key">Battery</span><span class="val" id="dis-battery">—</span></div>
   </div>
 
-  <h2 class="section-title" style="margin-top:0.5rem">動作モード</h2>
+  <h2 class="section-title" style="margin-top:0.5rem">Operation mode</h2>
   <p class="hint" style="margin-bottom:0.5rem">
-    Stack-chan の主な振る舞いを 3 つから選びます。「会話応答」は OpenAI / Gemini /
-    XiaoZhi のいずれかで会話、「JTTS ランダム発話」は音声のアイドル発話のみ、
-    「マイクでリップシンク」はマイク入力に合わせて口だけ動かします。
-    保存後の再起動で切替わります。
+    Choose what Stack-chan mainly does. "Conversation" talks with you using an AI service (Grok / OpenAI / Gemini / XiaoZhi), "Random talk" makes it babble idle phrases, "Mic lip-sync" just moves the mouth to the microphone input. Takes effect after Save &amp; Restart.
   </p>
   <select id="operation-mode">
-    <option value="2">会話応答 (Conversation)</option>
-    <option value="1">JTTS ランダム発話 (JttsRandom)</option>
-    <option value="0">マイクでリップシンク (MicLipSync)</option>
+    <option value="2">Conversation (AI chat)</option>
+    <option value="1">Random talk (JttsRandom)</option>
+    <option value="0">Mic lip-sync (MicLipSync)</option>
   </select>
 
-  <label for="ssid">Wi-Fi SSID</label>
-  <input type="text" id="ssid" maxlength="32" placeholder="MyNetwork">
-  <p class="hint">空欄のままにすると現在の値を変更しません</p>
 
-  <label for="password">Wi-Fi パスワード</label>
-  <input type="password" id="password" maxlength="64" placeholder="（変更しない場合は空欄）">
-
-  <h2 class="section-title" style="margin-top:0.5rem">デバイス名 (BLE / mDNS)</h2>
+  <h2 class="section-title" style="margin-top:0.5rem">Device name (BLE / mDNS)</h2>
   <p class="hint" style="margin-bottom:0.5rem">
-    BLE アドバタイズ名と mDNS ホスト名のもとになります。空欄なら自動生成 (Stackchan-XXXXXX)。
-    mDNS は英数字とハイフンに丸められます。保存後の再起動で反映。
+    Used for the Bluetooth name and the mDNS host name. Leave blank for automatic (Stackchan-XXXXXX). mDNS keeps only letters, digits and hyphens. Takes effect after restart.
   </p>
-  <label for="device-name">デバイス名</label>
-  <input type="text" id="device-name" maxlength="24" placeholder="（空欄で自動）">
+  <label for="device-name">Device name</label>
+  <input type="text" id="device-name" maxlength="24" placeholder="(blank = automatic)">
 
-  <h2 class="section-title" style="margin-top:0.5rem">パスワード認証</h2>
+  <h2 class="section-title" style="margin-top:0.5rem">Settings password</h2>
   <p class="hint" style="margin-bottom:0.5rem">
-    設定すると、この設定ページ (WiFi) と BLE の両方で認証が必要になります。
-    空欄を保存すると認証なし (現状互換) に戻ります。HTTP は Basic Auth（即時反映・
-    再起動不要）、BLE は暗号鍵に混入されるため次回接続時に反映。
+    When set, this settings page (Wi-Fi) and the Bluetooth settings both ask for this password. Save it blank to turn the password off. Wi-Fi uses HTTP Basic Auth (applies immediately); Bluetooth applies on the next connection.
   </p>
-  <label for="auth-password">パスワード <span id="auth-password-state" class="hint" style="font-weight:normal"></span></label>
+  <label for="auth-password">Password <span id="auth-password-state" class="hint" style="font-weight:normal"></span></label>
   <div style="display:flex;gap:0.4rem;align-items:stretch">
-    <input type="password" id="auth-password" maxlength="64" placeholder="（変更しない場合は空欄）" style="flex:1 1 auto">
-    <button type="button" id="btn-auth-password-clear" class="danger" title="認証なしに戻す">クリア</button>
+    <input type="password" id="auth-password" maxlength="64" placeholder="(leave blank to keep)" style="flex:1 1 auto">
+    <button type="button" id="btn-auth-password-clear" class="danger" title="Remove password">Clear</button>
   </div>
   </section><!-- /tab-panel "conn" -->
 
   <!-- ===== アバター ===== -->
   <section class="tab-panel" data-tab="avatar">
     <div id="avatar-dsl-section">
-      <h2 class="section-title">顔描画 DSL (Avatar)</h2>
+      <h2 class="section-title">Face drawing DSL (Avatar)</h2>
       <p class="hint" style="margin-bottom:0.5rem">
-        アバターの顔の描画ロジックを Lua 風 DSL で書いて、ブラウザ内でバイトコード化
-        → 実機に送信して即時反映します。NVS に保存されるので再起動後も維持。
-        <a href="/avatar_dsl.html" target="_blank" rel="noopener" style="white-space:nowrap">文法ガイド</a>
-        ／
+        Write the face drawing logic in a Lua-like DSL; it is compiled to bytecode in the browser, sent to the robot and applied immediately. Saved to flash, so it survives a restart.
+        <a href="/avatar_dsl.html" target="_blank" rel="noopener" style="white-space:nowrap">Syntax guide</a>
+        /
         <a href="https://github.com/ciniml/stackchan-idf/blob/main/assets/default_face.avdsl"
-           target="_blank" rel="noopener" style="white-space:nowrap">デフォルト顔ソース</a>
+           target="_blank" rel="noopener" style="white-space:nowrap">Default face source</a>
       </p>
       <textarea id="dsl-src" spellcheck="false" autocomplete="off"
                 autocapitalize="off" autocorrect="off"></textarea>
-      <div id="dsl-msg">DSL コンパイラ未起動</div>
+      <div id="dsl-msg">DSL compiler not started</div>
       <div class="dsl-btnrow">
-        <button type="button" class="primary" id="btn-dsl-send">コンパイル &amp; 送信</button>
-        <select id="dsl-preset" class="secondary" title="プリセットを選ぶとソースを読込んで実機に送信"
+        <button type="button" class="primary" id="btn-dsl-send">Compile &amp; Send</button>
+        <select id="dsl-preset" class="secondary" title="Pick a preset to load its source and send it to the robot"
                 style="flex:1 1 auto;padding:.45rem;font-size:.85rem;background:#e0e0e0;
                        color:#333;border:1px solid #bbb;border-radius:6px;cursor:pointer">
         </select>
-        <button type="button" class="danger" id="btn-dsl-reset">実機をデフォルトに戻す</button>
+        <button type="button" class="danger" id="btn-dsl-reset">Reset robot to default face</button>
       </div>
       <div class="dsl-btnrow">
-        <button type="button" class="secondary" id="btn-dsl-download">.avbc ダウンロード</button>
-        <button type="button" class="secondary" id="btn-dsl-download-src">.avdsl ダウンロード</button>
-        <label class="filebtn" for="dsl-load">.avdsl 読込</label>
+        <button type="button" class="secondary" id="btn-dsl-download">Download .avbc</button>
+        <button type="button" class="secondary" id="btn-dsl-download-src">Download .avdsl</button>
+        <label class="filebtn" for="dsl-load">Load .avdsl</label>
         <input type="file" id="dsl-load" accept=".avdsl,text/plain" style="display:none">
       </div>
     </div>
@@ -488,347 +495,327 @@
   <!-- ===== 音声 ===== -->
   <section class="tab-panel" data-tab="audio">
     <div id="speaker-volume-section">
-      <h2 class="section-title">スピーカー音量</h2>
+      <h2 class="section-title">Speaker volume</h2>
       <p class="hint" style="margin-bottom:0.5rem">
-        内蔵 / Module Audio / Atomic Echo Base すべての出力に効きます。
-        スライダーを動かすと <strong>即時反映</strong> + 自動保存 (再起動不要)。
-        100% = ボード ごとの工場既定値、200% でブースト。
+        Applies to every output (internal / Module Audio / Atomic Echo Base). Moving the slider <strong>applies immediately</strong> and saves automatically (no restart). 100% = board default, 200% = boost.
       </p>
-      <label for="speaker-volume">音量 <span id="speaker-volume-value">100</span> %</label>
+      <label for="speaker-volume">Volume <span id="speaker-volume-value">100</span> %</label>
       <input type="range" id="speaker-volume" min="0" max="200" step="5" value="100" style="width:100%">
     </div>
 
     <div id="jtts-say-section">
-      <h2 class="section-title">jtts 試し発話</h2>
+      <h2 class="section-title">Test Japanese voice (jtts)</h2>
       <p class="hint" style="margin-bottom:0.5rem">
-        ひらがな / カタカナで入力して「話す」ボタンを押すと jtts で読み上げます。
-        漢字や英字は変換されないので、フリガナを直接入力してください。
-        音量や音声出力の確認に便利。
+        Type hiragana / katakana and press "Speak" to hear the Japanese voice (jtts). Kanji and Latin letters are not converted. Handy for checking volume and audio output.
       </p>
-      <input type="text" id="jtts-say-text" maxlength="64" placeholder="（例）こんにちは すたっくちゃん です">
-      <button type="button" id="btn-jtts-say" class="primary" style="margin-top:0.5rem">話す</button>
+      <input type="text" id="jtts-say-text" maxlength="64" placeholder="(e.g.) こんにちは すたっくちゃん です">
+      <button type="button" id="btn-jtts-say" class="primary" style="margin-top:0.5rem">Speak</button>
     </div>
 
     <div id="audio-output-section">
-      <h2 class="section-title">音声出力</h2>
+      <h2 class="section-title">Audio output</h2>
       <p class="hint" style="margin-bottom:0.5rem">
-        音声の出力先を選びます。「自動」は M5 Module Audio が装着されていれば
-        そちらを優先、未装着なら内蔵スピーカ。「内蔵」と「Module Audio」は
-        強制指定 (Module Audio 未装着で「Module Audio」を選ぶと内蔵に
-        フォールバックします)。保存後の再起動で切替わります。
+        Choose where sound comes out. "Auto" uses an M5 Module Audio if fitted, otherwise the internal speaker. "Internal" and "Module Audio" force one (choosing Module Audio without the module falls back to internal). Takes effect after restart.
       </p>
       <select id="audio-output">
-        <option value="0">自動 (Auto)</option>
-        <option value="1">内蔵スピーカ (Internal)</option>
+        <option value="0">Auto</option>
+        <option value="1">Internal speaker</option>
         <option value="2">M5 Module Audio (ModuleAudio)</option>
       </select>
     </div>
 
     <div id="rtp-section">
-      <h2 class="section-title">Wi-Fi RTP 音声受信</h2>
+      <h2 class="section-title">Wi-Fi RTP audio receive</h2>
       <label class="toggle-label" for="rtp-enabled">
         <input type="checkbox" id="rtp-enabled" checked>
-        <span>RTP 音声受信を有効にする</span>
+        <span>Enable RTP audio receive</span>
       </label>
-      <p class="hint">Wi-Fi 経由の RTP 音声受信(L16/μ-law=udp/6970, AAC=udp/6972)。会話機能オン時は自動的に無効です</p>
-      <p class="hint" style="margin-top:0.3rem">送信例 (ffmpeg)。ブラウザは UDP を送れないのでコピー用:</p>
+      <p class="hint">RTP audio over Wi-Fi (L16/μ-law=udp/6970, AAC=udp/6972). Automatically off while Conversation is on.</p>
+      <p class="hint" style="margin-top:0.3rem">Sender example (ffmpeg). Browsers cannot send UDP, so copy this:</p>
       <code id="rtp-audio-cmd" style="display:block;font-size:0.72rem;word-break:break-all;white-space:pre-wrap;user-select:all;background:#f4f4f4;padding:0.4rem;border-radius:4px"></code>
     </div>
 
     <div id="jtts-section">
-      <h2 class="section-title">アイドル時の声 (jtts)</h2>
+      <h2 class="section-title">Idle voice (jtts)</h2>
       <!-- Hidden legacy toggle — operation_mode == JttsRandom is the real
            switch now. Kept in the DOM so the refresh/apply JS keeps working. -->
       <label class="toggle-label" for="jtts-idle-enabled" style="display:none">
         <input type="checkbox" id="jtts-idle-enabled" checked>
-        <span>アイドル時の発話を有効にする</span>
+        <span>Enable idle talking</span>
       </label>
 
-      <h2 class="section-title">マイク リップシンク 調整 (会話・jtts どちらもオフのとき有効)</h2>
-      <p class="hint" style="margin-bottom:0.5rem">マイク入力の音量に合わせて口を開閉します。CoreS3 はマイク感度が低めなので入力ゲインを上げると見栄えします。スライダーを動かすと <strong>即時反映</strong> + 自動保存します。</p>
+      <h2 class="section-title">Mic lip-sync tuning (when Conversation and jtts are both off)</h2>
+      <p class="hint" style="margin-bottom:0.5rem">Opens and closes the mouth with the microphone volume. The CoreS3 mic is fairly quiet, so raising the input gain looks better. Moving the slider <strong>applies immediately</strong> and saves automatically.</p>
       <div class="grid2">
         <div style="grid-column:span 2">
-          <label for="mic-lip-input">入力ゲイン <span id="mic-lip-input-value">200</span> %</label>
+          <label for="mic-lip-input">Input gain <span id="mic-lip-input-value">200</span> %</label>
           <input type="range" id="mic-lip-input" min="10" max="1000" step="10" value="200" style="width:100%">
         </div>
         <div style="grid-column:span 2">
-          <label for="mic-lip-output">口の開き ゲイン <span id="mic-lip-output-value">100</span> %</label>
+          <label for="mic-lip-output">Mouth opening gain <span id="mic-lip-output-value">100</span> %</label>
           <input type="range" id="mic-lip-output" min="10" max="500" step="10" value="100" style="width:100%">
         </div>
       </div>
       <label class="toggle-label" for="mic-lip-agc" style="margin-top:0.5rem">
         <input type="checkbox" id="mic-lip-agc">
-        <span>自動ゲイン制御 (AGC) を有効にする</span>
+        <span>Enable automatic gain control (AGC)</span>
       </label>
-      <p class="hint">周辺の雑音レベルを自動追跡して感度を調整します。OFF にすると固定閾値で判定。即時反映（再起動不要）。</p>
+      <p class="hint">Tracks the background noise level and adjusts sensitivity. When OFF, a fixed threshold is used. Applies immediately (no restart).</p>
 
-      <h2 class="section-title" style="margin-top:1rem">jtts ボイス</h2>
-      <p class="hint" style="margin-bottom:0.5rem">空欄や変更なしで「保存」を押すと現在の設定は維持されます。</p>
+      <h2 class="section-title" style="margin-top:1rem">jtts voice</h2>
+      <p class="hint" style="margin-bottom:0.5rem">Pressing "Save" with blank or unchanged fields keeps the current settings.</p>
 
-      <label for="jtts-voice">声タイプ</label>
+      <label for="jtts-voice">Voice type</label>
       <select id="jtts-voice">
-        <option value="female">Female (子供っぽい)</option>
-        <option value="male">Male (低め)</option>
+        <option value="female">Female (childlike)</option>
+        <option value="male">Male (lower)</option>
       </select>
 
-      <label for="jtts-synth">合成方式</label>
+      <label for="jtts-synth">Synthesis method</label>
       <select id="jtts-synth">
-        <option value="v2">標準 (v2 — 声門波 + カスケード)</option>
-        <option value="classic">クラシック (旧方式 — ブザー声)</option>
+        <option value="v2">Standard (v2 — glottal + cascade)</option>
+        <option value="classic">Classic (old — buzzer voice)</option>
       </select>
 
-      <label for="jtts-engine">エンジン</label>
+      <label for="jtts-engine">Engine</label>
       <select id="jtts-engine">
-        <option value="auto">自動 (sanoTTS &gt; HMM ボイス &gt; 音声 DB &gt; フォルマント)</option>
-        <option value="sano">sanoTTS-jp (重み必須、無ければフォールバック)</option>
-        <option value="hmm">HMM 合成 (ボイス必須、無ければフォールバック)</option>
-        <option value="unit">単位連結 (DB 必須、無ければフォルマント)</option>
-        <option value="formant">フォルマント合成のみ</option>
+        <option value="auto">Auto (sanoTTS &gt; HMM voice &gt; voice DB &gt; formant)</option>
+        <option value="sano">sanoTTS-jp (needs weights, otherwise falls back)</option>
+        <option value="hmm">HMM synthesis (needs a voice, otherwise falls back)</option>
+        <option value="unit">Unit concatenation (needs DB, otherwise formant)</option>
+        <option value="formant">Formant synthesis only</option>
       </select>
 
-      <label for="jtts-halftone">HMM ピッチシフト [半音]</label>
+      <label for="jtts-halftone">HMM pitch shift [semitones]</label>
       <input type="number" id="jtts-halftone" min="-12" max="12" step="0.5" placeholder="0">
 
-      <h2 class="section-title" style="margin-top:1rem">HMM ボイス (.htsvoice)</h2>
+      <h2 class="section-title" style="margin-top:1rem">HMM voice (.htsvoice)</h2>
       <p class="hint" style="margin-bottom:0.5rem">
-        HTS ボイス (.htsvoice、~1-2 MB) をアップロードすると jtts の発話が
-        HMM 合成になります (16 MB flash ボードのみ)。読みに
-        <code>'</code> (アクセント核) と <code>/</code> (アクセント句切り) を
-        書けます。CC BY のボイス例: Mei / tohoku-f01 / nitech m001。
-        反映は即時、flash 保存で再起動後も有効。
+        Uploading an HTS voice (.htsvoice, ~1-2 MB) switches jtts to HMM synthesis (16 MB flash boards only). In readings you can write
+        <code>'</code> (accent nucleus) and <code>/</code> (accent phrase break). CC BY example voices: Mei / tohoku-f01 / nitech m001. Applies immediately and is kept in flash after restart.
       </p>
-      <p class="hint" id="hmm-voice-status" style="margin-bottom:0.5rem">状態: —</p>
+      <p class="hint" id="hmm-voice-status" style="margin-bottom:0.5rem">Status: —</p>
 
-      <h3 style="margin:0.5rem 0 0.25rem;font-size:0.95rem">サーバーから取得</h3>
+      <h3 style="margin:0.5rem 0 0.25rem;font-size:0.95rem">Get from server</h3>
       <p class="hint" style="margin:0 0 0.4rem">
-        配布ボイスをブラウザがダウンロードしてデバイスへ転送・インストールします
-        (PC にファイルを用意する必要なし。ブラウザ側にインターネット接続が必要)。
+        The browser downloads a published voice and installs it on the device (no file needed on your PC; the browser needs internet access).
       </p>
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
-        <select id="hmm-voice-catalog" style="flex:1 1 12rem"><option value="">— 取得中… —</option></select>
-        <button type="button" id="btn-hmm-voice-fetch">取得してインストール</button>
+        <select id="hmm-voice-catalog" style="flex:1 1 12rem"><option value="">— loading… —</option></select>
+        <button type="button" id="btn-hmm-voice-fetch">Download &amp; install</button>
       </div>
       <p class="hint" id="hmm-voice-fetch-status" style="margin:0.35rem 0 0" hidden></p>
       <p class="hint" id="hmm-voice-attribution" style="margin:0.35rem 0 0;font-size:0.8rem;color:#777"></p>
       <p class="hint" style="margin:0.35rem 0 0;font-size:0.8rem">
-        音声エンジン (hts_engine, Modified BSD) と配布ボイスの帰属表示:
-        <a href="https://ciniml.github.io/stackchan-idf/licenses.html" target="_blank" rel="noopener">ライセンス / 帰属表示</a>
+        Attribution for the speech engine (hts_engine, Modified BSD) and published voices:
+        <a href="https://ciniml.github.io/stackchan-idf/licenses.html" target="_blank" rel="noopener">Licenses / attribution</a>
       </p>
 
-      <h3 style="margin:0.8rem 0 0.25rem;font-size:0.95rem">ファイルからアップロード</h3>
+      <h3 style="margin:0.8rem 0 0.25rem;font-size:0.95rem">Upload from file</h3>
       <p class="hint" style="margin:0 0 0.4rem">
-        任意の HTS ボイス (.htsvoice、~1-2 MB)。読みに <code>'</code>
-        (アクセント核) と <code>/</code> (アクセント句切り) を書けます。
+        Any HTS voice (.htsvoice, ~1-2 MB). In readings you can write <code>'</code>
+        (accent nucleus) and <code>/</code> (accent phrase break).
       </p>
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
         <input type="file" id="hmm-voice-file" accept=".htsvoice,application/octet-stream" style="flex:1 1 12rem">
-        <button type="button" id="btn-hmm-voice-upload">アップロード</button>
-        <button type="button" id="btn-hmm-voice-clear" class="danger">削除</button>
+        <button type="button" id="btn-hmm-voice-upload">Upload</button>
+        <button type="button" id="btn-hmm-voice-clear" class="danger">Delete</button>
       </div>
 
-      <h2 class="section-title" style="margin-top:1rem">sanoTTS-jp (ニューラル TTS)</h2>
+      <h2 class="section-title" style="margin-top:1rem">sanoTTS-jp (neural TTS)</h2>
       <p class="hint" style="margin-bottom:0.5rem">
         <a href="https://github.com/ayutaz/sanoTTS-jp" target="_blank" rel="noopener">sanoTTS-jp</a>
-        の重み (654 KB) を入れると、jtts の発話がニューラル合成 (22.05 kHz) になります
-        (PSRAM のあるボード)。読みは HTS ボイスと同じ記法 (<code>'</code> 核、<code>/</code> 句切り)。
-        重みは本ファームウェアには同梱していません。機体が公式 GitHub Releases から直接取得します。
+        weights (654 KB) switch jtts to neural synthesis (22.05 kHz) (boards with PSRAM). Readings use the same notation as HTS voices (<code>'</code> nucleus, <code>/</code> break). The weights are not bundled with this firmware; the robot downloads them directly from the official GitHub Releases.
       </p>
-      <p class="hint" id="sanotts-status" style="margin-bottom:0.5rem">状態: —</p>
+      <p class="hint" id="sanotts-status" style="margin-bottom:0.5rem">Status: —</p>
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
         <input type="text" id="sanotts-release" value="v1.1.0" placeholder="release tag" style="flex:0 1 6rem">
         <input type="text" id="sanotts-file" value="saanotts-jp-v4-int8.bin" placeholder="asset file" style="flex:1 1 12rem">
-        <button type="button" id="btn-sanotts-fetch">公式 Releases から取得</button>
-        <button type="button" id="btn-sanotts-clear" class="danger">削除</button>
+        <button type="button" id="btn-sanotts-fetch">Get from official Releases</button>
+        <button type="button" id="btn-sanotts-clear" class="danger">Delete</button>
       </div>
       <p class="hint" id="sanotts-fetch-status" style="margin:0.35rem 0 0" hidden></p>
       <p class="hint" style="margin:0.35rem 0 0;font-size:0.8rem;color:#777">
-        重みのライセンスは MIT ではありません。取得前に
+        The weights are not MIT licensed. Before downloading, read
         <a href="https://github.com/ayutaz/sanoTTS-jp/blob/main/LICENSE-MODEL.md" target="_blank" rel="noopener">LICENSE-MODEL.md</a>
-        を確認してください。合成音声はつくよみちゃんコーパスの規約により、個人・団体への攻撃や批判、
-        政治的・宗教的な主張、注意書きのない過激な内容、他者が再利用できる素材としての配布には使えません。
+        . Under the Tsukuyomi-chan corpus terms, the synthesized voice must not be used to attack or criticize people or groups, for political or religious claims, for extreme content without a warning, or distributed as reusable material.
       </p>
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;margin-top:0.4rem">
         <input type="file" id="sanotts-upload-file" accept=".bin,application/octet-stream" style="flex:1 1 12rem">
-        <button type="button" id="btn-sanotts-upload">ファイルからアップロード</button>
+        <button type="button" id="btn-sanotts-upload">Upload from file</button>
       </div>
 
-      <h2 class="section-title" style="margin-top:1rem">単位連結 音声 DB (.jvox)</h2>
+      <h2 class="section-title" style="margin-top:1rem">Unit-concatenation voice DB (.jvox)</h2>
       <p class="hint" style="margin-bottom:0.5rem">
-        実音声由来のモーラ単位 DB をアップロードすると、jtts の発話が単位連結
-        (TD-PSOLA) 合成になります。<code>tools/jvox/</code> のツールで生成した
-        .jvox (ADPCM 版推奨、~230 KB)。反映は即時、NVS 保存で再起動後も有効。
+        Uploading a mora-unit DB made from real speech switches jtts to unit-concatenation (TD-PSOLA) synthesis. <code>tools/jvox/</code> tool generates the .jvox (ADPCM version recommended, ~230 KB). Applies immediately and is kept in flash after restart.
       </p>
-      <p class="hint" id="voice-db-status" style="margin-bottom:0.5rem">状態: —</p>
+      <p class="hint" id="voice-db-status" style="margin-bottom:0.5rem">Status: —</p>
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
         <input type="file" id="voice-db-file" accept=".jvox,application/octet-stream" style="flex:1 1 12rem">
-        <button type="button" id="btn-voice-db-upload">アップロード</button>
-        <button type="button" id="btn-voice-db-clear" class="danger">削除</button>
+        <button type="button" id="btn-voice-db-upload">Upload</button>
+        <button type="button" id="btn-voice-db-clear" class="danger">Delete</button>
       </div>
 
       <div class="grid2">
         <div>
-          <label for="jtts-f0">ピッチ F0 (Hz)</label>
+          <label for="jtts-f0">Pitch F0 (Hz)</label>
           <input type="number" id="jtts-f0" min="60" max="500" step="1" placeholder="280">
         </div>
         <div>
-          <label for="jtts-formant">フォルマント倍率</label>
+          <label for="jtts-formant">Formant scale</label>
           <input type="number" id="jtts-formant" min="0.5" max="2.0" step="0.05" placeholder="1.30">
         </div>
         <div>
-          <label for="jtts-mora">モーラ長 (ms)</label>
+          <label for="jtts-mora">Mora length (ms)</label>
           <input type="number" id="jtts-mora" min="40" max="300" step="5" placeholder="120">
         </div>
         <div>
-          <label for="jtts-gain">音量 (gain)</label>
+          <label for="jtts-gain">Volume (gain)</label>
           <input type="number" id="jtts-gain" min="0" max="2" step="0.05" placeholder="0.60">
         </div>
         <div>
-          <label for="jtts-breath">息成分 (breathiness)</label>
+          <label for="jtts-breath">Breathiness</label>
           <input type="number" id="jtts-breath" min="0" max="1" step="0.05" placeholder="0.00">
         </div>
         <div>
-          <label for="jtts-vibrate">ビブラート rate (Hz)</label>
+          <label for="jtts-vibrate">Vibrato rate (Hz)</label>
           <input type="number" id="jtts-vibrate" min="0" max="10" step="0.1" placeholder="0">
         </div>
         <div>
-          <label for="jtts-vibratoc">ビブラート depth (cents)</label>
+          <label for="jtts-vibratoc">Vibrato depth (cents)</label>
           <input type="number" id="jtts-vibratoc" min="0" max="200" step="1" placeholder="0">
         </div>
         <div>
-          <label for="jtts-oq">声門開大比 (やわらかさ)</label>
+          <label for="jtts-oq">Glottal open quotient (softness)</label>
           <input type="number" id="jtts-oq" min="0.35" max="0.85" step="0.01" placeholder="0.56">
         </div>
         <div>
-          <label for="jtts-tilt">高域減衰 tilt (dB)</label>
+          <label for="jtts-tilt">High-frequency tilt (dB)</label>
           <input type="number" id="jtts-tilt" min="0" max="24" step="1" placeholder="0">
         </div>
         <div>
-          <label for="jtts-bwscale">帯域幅倍率 (鳴き抑え)</label>
+          <label for="jtts-bwscale">Bandwidth scale (less buzz)</label>
           <input type="number" id="jtts-bwscale" min="0.7" max="2.0" step="0.05" placeholder="1.00">
         </div>
       </div>
       <p class="hint" style="margin-top:0.25rem">
-        やわらかめの目安: 開大比 0.65–0.75 / tilt 6–12 dB / 帯域幅 1.2–1.5
-        (+息成分 0.1–0.25)。いずれも v2 方式で有効 (帯域幅はクラシックでも有効)。</p>
+        For a softer voice: open quotient 0.65–0.75 / tilt 6–12 dB / bandwidth 1.2–1.5 (+breathiness 0.1–0.25). All apply to the v2 method (bandwidth also to classic).</p>
 
-      <label for="jtts-phrases" style="margin-top:0.75rem">アイドル時の発話フレーズ (一行 1 つ)</label>
+      <label for="jtts-phrases" style="margin-top:0.75rem">Idle phrases (one per line)</label>
       <p class="hint" style="margin:0.2rem 0">
-        <code>画面表示 | 読み</code> の形式。読みはひらがな/カタカナのみ (漢字は発声時に
-        無視されます)。<code>|</code> を省くと表示と読みが同じになります。
-        例: <code>こんにちは | こんにちわ</code></p>
+        <code>display text | reading</code> format. The reading must be hiragana/katakana only (kanji are ignored when speaking). <code>|</code> can be omitted; then the display text is also the reading. Example: <code>こんにちは | こんにちわ</code></p>
       <textarea id="jtts-phrases" rows="6" placeholder="こんにちは | こんにちわ&#10;おはよー&#10;..."></textarea>
-      <label for="jtts-phrase-order">発話の順序</label>
+      <label for="jtts-phrase-order">Phrase order</label>
       <select id="jtts-phrase-order">
-        <option value="random">ランダム (毎回どれかを選ぶ)</option>
-        <option value="sequential">連続 (上の行から順に、最後まで行ったら先頭へ)</option>
+        <option value="random">Random (pick one each time)</option>
+        <option value="sequential">In order (top to bottom, then start over)</option>
       </select>
-      <label for="jtts-prox-phrases" style="margin-top:0.75rem">近接時の発話フレーズ (一行 1 つ、CoreS3)</label>
-      <p class="hint" style="margin:0.2rem 0">手を近づけたときに 1 つ選んで話します (形式は上と同じ)。空なら吹き出しだけ出します。</p>
+      <label for="jtts-prox-phrases" style="margin-top:0.75rem">Proximity phrases (one per line, CoreS3)</label>
+      <p class="hint" style="margin:0.2rem 0">When you bring your hand close, one is chosen and spoken (same format as above). If empty, only a speech balloon is shown.</p>
       <textarea id="jtts-prox-phrases" rows="3" placeholder="なあに？ | なあに&#10;ちかいよ&#10;..."></textarea>
     </div>
     <div id="lt-section">
-      <h2 class="section-title">LT タイムキーパー</h2>
-      <p class="hint">本体の「LT」タブで開始/停止。ここでは既定時間と通知ワードを設定します（保存しなくても送信で即反映、保存で再起動後も保持）。読みはひらがな（jtts は漢字を読めません）</p>
+      <h2 class="section-title">LT timekeeper</h2>
+      <p class="hint">Start/stop on the device's "LT" tab. Here you set the default time and announcement words (Send applies immediately without saving; Save keeps them after restart). Readings must be hiragana (jtts cannot read kanji).</p>
       <div class="grid2">
         <div>
-          <label for="lt-total">発表時間 (秒)</label>
+          <label for="lt-total">Talk length (seconds)</label>
           <input type="number" id="lt-total" min="30" max="3600" step="30" placeholder="300">
         </div>
         <div>
-          <label for="lt-warn">残り通知 (終了の何秒前)</label>
+          <label for="lt-warn">Warning (seconds before end)</label>
           <input type="number" id="lt-warn" min="10" max="600" step="10" placeholder="60">
         </div>
       </div>
       <div class="grid2">
         <div>
-          <label for="lt-soon">直前通知 (秒前、0=無効)</label>
+          <label for="lt-soon">Final warning (seconds before, 0=off)</label>
           <input type="number" id="lt-soon" min="0" max="120" step="5" placeholder="15">
         </div>
         <div>
-          <label for="lt-repeat">超過の繰返し間隔 (秒、0=1回のみ)</label>
+          <label for="lt-repeat">Overtime repeat interval (seconds, 0=once)</label>
           <input type="number" id="lt-repeat" min="0" max="300" step="5" placeholder="30">
         </div>
       </div>
-      <label for="lt-warn-text">残り通知 表示テキスト</label>
-      <input id="lt-warn-text" placeholder="のこり1分です">
-      <label for="lt-warn-reading">残り通知 読み (ひらがな)</label>
+      <label for="lt-warn-text">Warning display text</label>
+      <input id="lt-warn-text" placeholder="1 minute left">
+      <label for="lt-warn-reading">Warning reading (hiragana)</label>
       <input id="lt-warn-reading" placeholder="のこり いっぷん です">
-      <label for="lt-soon-text">直前通知 表示テキスト</label>
-      <input id="lt-soon-text" placeholder="のこり15秒です">
-      <label for="lt-soon-reading">直前通知 読み (ひらがな)</label>
+      <label for="lt-soon-text">Final warning display text</label>
+      <input id="lt-soon-text" placeholder="15 seconds left">
+      <label for="lt-soon-reading">Final warning reading (hiragana)</label>
       <input id="lt-soon-reading" placeholder="のこり じゅうごびょう です">
-      <label for="lt-just-text">時間ちょうど 表示テキスト</label>
-      <input id="lt-just-text" placeholder="（空欄なら超過と同じ）">
-      <label for="lt-just-reading">時間ちょうど 読み (ひらがな)</label>
-      <input id="lt-just-reading" placeholder="（空欄なら超過と同じ）">
-      <label for="lt-over-text">超過 表示テキスト</label>
-      <input id="lt-over-text" placeholder="時間です!">
-      <label for="lt-over-reading">超過 読み (ひらがな)</label>
+      <label for="lt-just-text">Time-up display text</label>
+      <input id="lt-just-text" placeholder="(blank = same as overtime)">
+      <label for="lt-just-reading">Time-up reading (hiragana)</label>
+      <input id="lt-just-reading" placeholder="(blank = same as overtime)">
+      <label for="lt-over-text">Overtime display text</label>
+      <input id="lt-over-text" placeholder="Time's up!">
+      <label for="lt-over-reading">Overtime reading (hiragana)</label>
       <input id="lt-over-reading" placeholder="おじかん です">
-      <button type="button" id="btn-lt-send" style="margin-top:0.5rem">LT 設定を送信 (即反映)</button>
+      <button type="button" id="btn-lt-send" style="margin-top:0.5rem">Send LT settings (applies now)</button>
     </div>
   </section><!-- /tab-panel "audio" -->
 
   <!-- ===== 会話 ===== -->
   <section class="tab-panel" data-tab="chat">
     <div id="chat-section">
-      <h2 class="section-title">会話プロバイダ・API キー</h2>
-      <label for="provider">会話プロバイダ</label>
+      <h2 class="section-title">AI provider & API keys</h2>
+      <label for="provider">AI provider</label>
       <select id="provider">
+        <option value="3" selected>xAI Grok Voice (recommended)</option>
         <option value="0">OpenAI Realtime</option>
         <option value="1">Google Gemini Live</option>
-        <option value="2">XiaoZhi サーバー</option>
-        <option value="3">xAI Grok Voice</option>
+        <option value="2">XiaoZhi server</option>
       </select>
-      <p class="hint">どの会話バックエンドを使うかを切り替えます。キー / 設定は下記すべてに保存できます。</p>
+      <p class="hint">Choose which AI service Stack-chan talks to. Keys / settings for all of them can be saved below.</p>
 
-      <label for="apikey">OpenAI API キー</label>
-      <input type="password" id="apikey" maxlength="256" placeholder="sk-… （変更しない場合は空欄）">
+      <label for="apikey">OpenAI API key</label>
+      <input type="password" id="apikey" maxlength="256" placeholder="sk-… (leave blank to keep)">
 
-      <label for="gemini-apikey">Gemini API キー</label>
-      <input type="password" id="gemini-apikey" maxlength="256" placeholder="AIza… （変更しない場合は空欄）">
+      <label for="gemini-apikey">Gemini API key</label>
+      <input type="password" id="gemini-apikey" maxlength="256" placeholder="AIza… (leave blank to keep)">
 
-      <label for="xai-apikey">xAI API キー (Grok)</label>
-      <input type="password" id="xai-apikey" maxlength="256" placeholder="xai-… （変更しない場合は空欄）">
+      <p class="hint">The xAI API key (Grok) is on the <strong>Setup</strong> tab.</p>
 
-      <label for="xiaozhi-url">XiaoZhi サーバー URL</label>
+      <label for="xiaozhi-url">XiaoZhi server URL</label>
       <input type="text" id="xiaozhi-url" maxlength="256" placeholder="ws://192.168.1.10:8000/xiaozhi/v1/">
 
-      <label for="xiaozhi-token">XiaoZhi トークン</label>
-      <input type="password" id="xiaozhi-token" maxlength="256" placeholder="（任意 / 変更しない場合は空欄）">
+      <label for="xiaozhi-token">XiaoZhi token</label>
+      <input type="password" id="xiaozhi-token" maxlength="256" placeholder="(optional / leave blank to keep)">
 
-      <label for="system-prompt">システムプロンプト (会話の人格)</label>
+      <label for="system-prompt">System prompt (robot personality)</label>
       <textarea id="system-prompt" rows="6" maxlength="2048"
                 style="width:100%;box-sizing:border-box;font-size:0.8rem;padding:0.4rem;border:1px solid #ccc;border-radius:4px;white-space:pre-wrap"
-                placeholder="空欄にすると組み込みの既定プロンプトを使用します"></textarea>
-      <p class="hint">OpenAI / Gemini / Grok の会話に使う指示文。XiaoZhi はサーバー側の人格を使うため無視されます。保存後の再起動で反映されます。</p>
+                placeholder="Leave blank to use the built-in English default prompt"></textarea>
+      <p class="hint">Instructions for OpenAI / Gemini / Grok conversations. Ignored by XiaoZhi (it uses its server-side persona). Takes effect after restart.</p>
 
-      <label for="conv-headers">追加 HTTP ヘッダ (会話 API)</label>
+      <label for="conv-headers">Extra HTTP headers (conversation API)</label>
       <textarea id="conv-headers" rows="3" maxlength="1024"
                 style="width:100%;box-sizing:border-box;font-size:0.8rem;padding:0.4rem;border:1px solid #ccc;border-radius:4px;white-space:pre-wrap;font-family:monospace"
                 placeholder="CF-Access-Client-Id: xxxxx.access&#10;CF-Access-Client-Secret: yyyyy"></textarea>
-      <p class="hint">会話 API への WebSocket 接続に付与する追加ヘッダ。1 行 1 つ「ヘッダ名: 値」。Cloudflare Access のサービストークン等に使用。全プロバイダ共通。保存後の再起動で反映されます。</p>
+      <p class="hint">Extra headers added to the WebSocket connection to the conversation API. One "Name: value" per line. For example a Cloudflare Access service token. Used for all providers. Takes effect after restart.</p>
 
-      <label for="agent-url">エージェント サーバー URL (ask_agent)</label>
-      <input type="text" id="agent-url" maxlength="256" placeholder="http://192.168.1.10:8787 (空欄 = 無効)">
-      <label for="agent-token">エージェント サーバー トークン</label>
-      <input type="password" id="agent-token" maxlength="128" placeholder="（変更しない場合は空欄）">
-      <p class="hint">会話中に「調べて」「〇〇に聞いて」と頼むと、家のパソコンで動くエージェント (tools/stackchan-agent) に依頼して回答を話します。LAN か Tailscale で届く http:// の URL を指定。OpenAI / Gemini のみ。保存後の再起動で反映されます。</p>
+      <label for="agent-url">Agent server URL (ask_agent)</label>
+      <input type="text" id="agent-url" maxlength="256" placeholder="http://192.168.1.10:8787 (blank = off)">
+      <label for="agent-token">Agent server token</label>
+      <input type="password" id="agent-token" maxlength="128" placeholder="(leave blank to keep)">
+      <p class="hint">During a conversation, asking "look this up" or "ask the agent" sends the request to an agent running on your home computer (tools/stackchan-agent) and speaks the answer. Use an http:// URL reachable over LAN or Tailscale. OpenAI / Gemini only. Takes effect after restart.</p>
 
       <!-- Hidden legacy toggle — operation_mode (selectable in 接続 tab) is
            the real switch now. Kept in the DOM so the refresh/apply JS
            keeps working. -->
       <label class="toggle-label" for="openai-enabled" style="display:none">
         <input type="checkbox" id="openai-enabled" checked>
-        <span>会話機能を有効にする</span>
+        <span>Enable conversation (AI chat)</span>
       </label>
 
-      <h2 class="section-title">タッチ操作</h2>
+      <h2 class="section-title">Touch</h2>
       <label class="toggle-label" for="barge-in-enabled">
         <input type="checkbox" id="barge-in-enabled">
-        <span>頭タッチで会話を中断する (バージイン)</span>
+        <span>Touch the head to interrupt (barge-in)</span>
       </label>
-      <p class="hint">応答再生中にアバター画面 (頭) をタップで AI 応答を中断します。タッチ センサが敏感で誤動作しやすいので、初期値はオフです。なでなで (前→中→後の連続タッチ) は本トグルとは独立で常に有効です。即時反映（再起動不要）。</p>
+      <p class="hint">While a reply is playing, tapping the avatar screen (head) interrupts the AI reply. The touch sensor is sensitive and easily triggered, so this is off by default. Petting (front→middle→back swipe) always works regardless. Applies immediately (no restart).</p>
       <div id="prox-anchor"></div>
     </div>
   </section><!-- /tab-panel "chat" -->
@@ -836,131 +823,123 @@
   <!-- ===== デバイス ===== -->
   <section class="tab-panel" data-tab="device">
     <div id="device-toggles-section">
-      <h2 class="section-title">デバイス機能の有効/無効</h2>
+      <h2 class="section-title">Device features on/off</h2>
       <label class="toggle-label" for="bat-gauge-enabled">
         <input type="checkbox" id="bat-gauge-enabled" checked>
-        <span>バッテリー残量ゲージを表示する</span>
+        <span>Show battery gauge</span>
       </label>
-      <p class="hint">アバター画面の左上に残量ゲージを表示します（保存後の再起動で反映）</p>
+      <p class="hint">Shows a battery gauge at the top left of the avatar screen (after restart)</p>
 
       <label class="toggle-label" for="startup-arpeggio-enabled" style="margin-top:1rem">
         <input type="checkbox" id="startup-arpeggio-enabled" checked>
-        <span>起動時のアルペジオを再生する</span>
+        <span>Play startup chime</span>
       </label>
-      <p class="hint">起動直後の C5–E5–G5（スピーカー動作確認音）を鳴らすかどうか。OFF にすると無音起動（設定は即時保存・音自体は次回起動時）</p>
+      <p class="hint">Whether to play the C5–E5–G5 chime (speaker check) at startup. OFF = silent startup (saved immediately; takes effect next startup)</p>
 
       <label class="toggle-label" for="servo-enabled" style="margin-top:1rem">
         <input type="checkbox" id="servo-enabled" checked>
-        <span>サーボを有効にする</span>
+        <span>Enable servos</span>
       </label>
-      <p class="hint">無効にするとサーボ電源を入れず、サーボタスクも起動しません（保存後の再起動で反映）。操作画面の脱力/復帰トグルとは別物で、こちらは NVS に永続化されます。</p>
+      <p class="hint">When off, servo power is not turned on and the servo task does not start (after restart). Different from the relax/restore toggle on the Control screen; this one is saved permanently.</p>
 
       <label class="toggle-label" for="led-mouth-sync" style="margin-top:1rem">
         <input type="checkbox" id="led-mouth-sync">
-        <span>ネコミミ LED を口の動きと連動させる</span>
+        <span>Sync cat-ear LEDs with the mouth</span>
       </label>
-      <p class="hint">アバターの口が開くと LED が反応します (会話再生・jtts 発話・マイク リップシンク いずれの口元アニメーションでも有効)。OFF のときは設定した明るさで固定。即時反映（再起動不要）。</p>
+      <p class="hint">The LEDs react when the avatar's mouth opens (works for conversation playback, jtts speech and mic lip-sync). When OFF, they stay at the set brightness. Applies immediately (no restart).</p>
 
-      <label for="lip-sync-mode" style="margin-top:0.5rem">リップシンク モード</label>
+      <label for="lip-sync-mode" style="margin-top:0.5rem">Lip-sync mode</label>
       <p class="hint" style="margin-bottom:0.5rem">
-        ON のときの制御方式を選びます。「輝度」は口が開くほど LED 全体が明るくなる
-        従来動作。「レベル メーター」はネコミミの三角形 (LED1 = 底辺、LED5 = 頂点)
-        を 5 段階のバー グラフとして点灯させます。保存後の再起動で反映されます。
+        Choose how the LEDs react when ON. "Brightness" makes all LEDs brighter as the mouth opens (classic). "Level meter" lights the cat-ear triangle (LED1 = base, LED5 = top) as a 5-step bar graph. Takes effect after restart.
       </p>
       <select id="lip-sync-mode">
-        <option value="0">輝度 (Brightness)</option>
-        <option value="1">レベル メーター (LevelMeter)</option>
+        <option value="0">Brightness</option>
+        <option value="1">Level meter</option>
       </select>
 
       <label class="toggle-label" for="led-conv-sync" style="margin-top:1rem">
         <input type="checkbox" id="led-conv-sync" checked>
-        <span>会話のステータスをネコミミ LED で表す</span>
+        <span>Show conversation status on the cat-ear LEDs</span>
       </label>
-      <p class="hint">会話モードで画面右上のステータスに合わせて LED の光り方を変えます。待受中は上の通常設定どおり。各状態で「通常どおり」を選ぶとその状態では切り替えません。明るさは上の「明るさ」が上限。即時反映（再起動不要）。</p>
+      <p class="hint">In conversation mode, the LEDs change with the status shown at the top right of the screen. While idle they follow the normal settings above. Choosing "as normal" for a state leaves it unchanged. Brightness is capped by "Brightness" above. Applies immediately (no restart).</p>
       <div id="led-conv-groups" style="display:grid;grid-template-columns:auto 1fr auto;gap:.4rem .6rem;align-items:center;margin-top:.4rem">
-        <span>聞き取り中</span>
+        <span>Listening</span>
         <select id="led-conv-listen-pattern" class="led-conv-pattern"></select>
         <input type="color" id="led-conv-listen-color" value="#40ff40" style="width:3.2rem;height:2rem;padding:0;border:0">
-        <span>応答待ち / ツール / エージェント</span>
+        <span>Thinking / tool / agent</span>
         <select id="led-conv-work-pattern" class="led-conv-pattern"></select>
         <input type="color" id="led-conv-work-color" value="#2060ff" style="width:3.2rem;height:2rem;padding:0;border:0">
-        <span>応答中</span>
+        <span>Speaking</span>
         <select id="led-conv-talk-pattern" class="led-conv-pattern"></select>
         <input type="color" id="led-conv-talk-color" value="#ff8000" style="width:3.2rem;height:2rem;padding:0;border:0">
       </div>
     </div>
 
     <div id="camera-section" style="display:none">
-      <h2 class="section-title">カメラ (テスト撮影)</h2>
+      <h2 class="section-title">Camera (test shot)</h2>
       <p class="hint" style="margin-bottom:0.5rem">
-        本体前面の GC0308 カメラで 1 枚撮影して表示します (640×480 カラー)。
-        露出安定化のため撮影に 1 秒ほどかかります。QR スキャン実行中は使えません。
-        「RAW 撮影」は ISP (AWB・色変換) をバイパスした Bayer モザイク (RGGB) を取得し、
-        「カラーバー」はセンサー内蔵テストパターンで転送経路を検証します。
+        Takes one picture with the front GC0308 camera and shows it (640×480 color). Takes about 1 second for exposure to settle. Not available while a QR scan is running. "RAW shot" grabs the Bayer mosaic (RGGB) bypassing the ISP (AWB, color conversion); "Color bars" uses the sensor test pattern to check the transfer path.
       </p>
       <div class="ota-row">
-        <button id="btn-camera-capture" type="button" disabled>撮影</button>
-        <button id="btn-camera-raw" type="button" disabled>RAW 撮影</button>
-        <button id="btn-camera-colorbar" type="button" disabled>カラーバー</button>
-        <button id="btn-camera-save" type="button" disabled>PNG 保存</button>
-        <button id="btn-camera-save-raw" type="button" disabled>RAW 保存 (.pgm)</button>
+        <button id="btn-camera-capture" type="button" disabled>Take photo</button>
+        <button id="btn-camera-raw" type="button" disabled>RAW shot</button>
+        <button id="btn-camera-colorbar" type="button" disabled>Color bars</button>
+        <button id="btn-camera-save" type="button" disabled>Save PNG</button>
+        <button id="btn-camera-save-raw" type="button" disabled>Save RAW (.pgm)</button>
       </div>
       <canvas id="camera-canvas" width="320" height="240"
               style="width:100%; max-width:640px; background:#222; border-radius:6px;
                      margin-top:0.5rem; display:block"></canvas>
       <p class="hint" id="camera-msg" style="margin-top:0.25rem"></p>
       <details style="margin-top:0.5rem">
-        <summary class="hint">センサー レジスタ (色調整用)</summary>
+        <summary class="hint">Sensor registers (color tuning)</summary>
         <div class="ota-row" style="margin-top:0.4rem">
           <label>page <input id="camera-reg-page" type="text" value="0" size="4"></label>
           <label>reg <input id="camera-reg-addr" type="text" value="0x24" size="6"></label>
           <label>value <input id="camera-reg-value" type="text" value="" size="6"></label>
-          <button id="btn-camera-reg-read" type="button" disabled>読取</button>
-          <button id="btn-camera-reg-write" type="button" disabled>書込</button>
+          <button id="btn-camera-reg-read" type="button" disabled>Read</button>
+          <button id="btn-camera-reg-write" type="button" disabled>Write</button>
         </div>
-        <p class="hint">0x プレフィクス可。書込はセンサー再起動まで有効 (NVS 保存なし)。</p>
+        <p class="hint">0x prefix allowed. Writes last until the sensor restarts (not saved).</p>
       </details>
     </div>
 
     <div id="servo-section">
-      <h2 class="section-title">サーボ原点・可動範囲 (Takao base 等の自作版向け)</h2>
+      <h2 class="section-title">Servo center & range (for custom bases such as Takao base)</h2>
       <p class="hint" style="margin-bottom:0.5rem">
-        サーボの取り付け向きや可動範囲はベース基板で異なります。原点(0..1023)と可動範囲(度)を
-        設定して「保存して再起動」で反映してください。既定は M5 base の値です。
+        Servo mounting direction and range differ by base board. Set the center (0..1023) and range (degrees), then press "Save &amp; Restart". Defaults are for the M5 base.
       </p>
       <div class="grid2">
-        <div><label for="sv-yaw-zero">Yaw 原点 (raw)</label>
+        <div><label for="sv-yaw-zero">Yaw center (raw)</label>
           <input type="number" id="sv-yaw-zero" min="0" max="1023" step="1" placeholder="460"></div>
         <div></div>
-        <div><label for="sv-yaw-min">Yaw 最小 (°)</label>
+        <div><label for="sv-yaw-min">Yaw min (°)</label>
           <input type="number" id="sv-yaw-min" min="-90" max="90" step="1" placeholder="-40"></div>
-        <div><label for="sv-yaw-max">Yaw 最大 (°)</label>
+        <div><label for="sv-yaw-max">Yaw max (°)</label>
           <input type="number" id="sv-yaw-max" min="-90" max="90" step="1" placeholder="40"></div>
-        <div><label for="sv-pitch-zero">Pitch 原点 (raw)</label>
+        <div><label for="sv-pitch-zero">Pitch center (raw)</label>
           <input type="number" id="sv-pitch-zero" min="0" max="1023" step="1" placeholder="620"></div>
         <div></div>
-        <div><label for="sv-pitch-min">Pitch 最小 (°)</label>
+        <div><label for="sv-pitch-min">Pitch min (°)</label>
           <input type="number" id="sv-pitch-min" min="-90" max="90" step="1" placeholder="-10"></div>
-        <div><label for="sv-pitch-max">Pitch 最大 (°)</label>
+        <div><label for="sv-pitch-max">Pitch max (°)</label>
           <input type="number" id="sv-pitch-max" min="-90" max="90" step="1" placeholder="25"></div>
       </div>
       <div id="sv-range-area" style="margin-top:0.8rem;padding-top:0.6rem;border-top:1px dashed #555">
         <p class="hint" style="margin-bottom:0.5rem">
-          範囲設定モードを ON にするとサーボの力が抜け、手で動かした位置を取り込めます。
-          中央位置で「Yaw 原点取込」、左端で「Yaw 最小取込」、右端で「Yaw 最大取込」を順にタップしてください。
-          取り込んだ値は上の入力欄に反映されます。最後に「保存 &amp; 再起動」で確定します。
+          Turning range mode ON relaxes the servos so you can capture positions by moving the head by hand. Tap "Capture yaw center" at the middle, "Capture yaw min" at the left end and "Capture yaw max" at the right end. Captured values appear in the fields above. Finally press "Save &amp; Restart".
         </p>
         <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
-          <button type="button" id="sv-range-mode">範囲設定モード: OFF</button>
+          <button type="button" id="sv-range-mode">Range mode: OFF</button>
           <span class="hint" id="sv-live-pos">Yaw: -- (--°)   Pitch: -- (--°)</span>
         </div>
         <div style="margin-top:0.4rem;display:flex;flex-wrap:wrap;gap:0.3rem">
-          <button type="button" id="sv-cap-yaw-zero" disabled>Yaw 原点取込</button>
-          <button type="button" id="sv-cap-yaw-min"  disabled>Yaw 最小取込</button>
-          <button type="button" id="sv-cap-yaw-max"  disabled>Yaw 最大取込</button>
-          <button type="button" id="sv-cap-pitch-zero" disabled>Pitch 原点取込</button>
-          <button type="button" id="sv-cap-pitch-min"  disabled>Pitch 最小取込</button>
-          <button type="button" id="sv-cap-pitch-max"  disabled>Pitch 最大取込</button>
+          <button type="button" id="sv-cap-yaw-zero" disabled>Capture yaw center</button>
+          <button type="button" id="sv-cap-yaw-min"  disabled>Capture yaw min</button>
+          <button type="button" id="sv-cap-yaw-max"  disabled>Capture yaw max</button>
+          <button type="button" id="sv-cap-pitch-zero" disabled>Capture pitch center</button>
+          <button type="button" id="sv-cap-pitch-min"  disabled>Capture pitch min</button>
+          <button type="button" id="sv-cap-pitch-max"  disabled>Capture pitch max</button>
         </div>
       </div>
     </div>
@@ -970,106 +949,94 @@
   <section class="tab-panel" data-tab="maint">
     <div id="mcp-section">
       <h2 class="section-title">Claude Code Channel (MCP)</h2>
-      <p class="hint" id="mcp-token-status">トークン: <span id="mcp-token-state">—</span></p>
-      <label for="mcp-token">MCP API トークン (空欄なら変更しない / 値が入っているなら上書き、空文字列に揃えるには「クリア」)</label>
-      <input type="password" id="mcp-token" autocomplete="off" placeholder="(変更しないなら空欄)">
+      <p class="hint" id="mcp-token-status">Token: <span id="mcp-token-state">—</span></p>
+      <label for="mcp-token">MCP API token (blank = no change / a value overwrites; to set it empty use "Clear")</label>
+      <input type="password" id="mcp-token" autocomplete="off" placeholder="(blank = no change)">
       <div style="display:flex;gap:0.4rem;margin-top:0.3rem">
-        <button type="button" id="btn-mcp-token-gen">ランダム生成</button>
-        <button type="button" id="btn-mcp-token-show">表示</button>
-        <button type="button" id="btn-mcp-token-clear">クリア</button>
+        <button type="button" id="btn-mcp-token-gen">Generate random</button>
+        <button type="button" id="btn-mcp-token-show">Show</button>
+        <button type="button" id="btn-mcp-token-clear">Clear</button>
       </div>
-      <p class="hint">設定されていれば <code>/mcp/*</code> が有効化（adapter から接続可）。空にすると <code>/mcp/*</code> は 404 を返します（即時反映・再起動不要）</p>
+      <p class="hint">When set, <code>/mcp/*</code> is enabled (adapters can connect). When empty, <code>/mcp/*</code> returns 404 (applies immediately, no restart)</p>
     </div>
 
     <div id="ota-section">
-      <h2 class="section-title">ファームウェア更新 (OTA)</h2>
+      <h2 class="section-title">Firmware update (OTA)</h2>
       <p class="hint" style="margin-bottom:0.5rem">
-        ローカルの <code>firmware.bin</code> を選んで「書き込み」を押すと、新ファームを
-        別パーティションに書き込んで再起動します。Wi-Fi 経由は BLE より大幅に高速です。
+        Choose a local <code>firmware.bin</code> and press "Write" to write the new firmware to the other partition and restart. Much faster over Wi-Fi than Bluetooth.
       </p>
       <details style="margin:0.5rem 0; font-size:0.85rem; color:#444">
-        <summary style="cursor:pointer; color:#06c">最新の release をローカル ファイルで書き込む手順 (iPhone / AP モードでも可)</summary>
+        <summary style="cursor:pointer; color:#06c">How to write the latest release from a local file (works on iPhone / in hotspot mode)</summary>
         <ol style="margin:0.5rem 0 0.5rem 1.2rem; padding:0">
-          <li>Safari で
+          <li>In Safari, open
             <a href="https://ciniml.github.io/stackchan-idf/" target="_blank" rel="noopener">
               ciniml.github.io/stackchan-idf
             </a>
-            を開く。<br>
-            <span style="color:#888">(AP モードで Wi-Fi がインターネットに繋がっていなくても、iOS は
-            セルラーへ自動 fallback します。繋がらない場合は一度 Wi-Fi を切ってからやり直してください。)</span>
+            .<br>
+            <span style="color:#888">(In hotspot mode, if the Wi-Fi has no internet, iOS falls back to cellular automatically. If it does not connect, turn Wi-Fi off once and try again.)</span>
           </li>
-          <li>該当ボードの <code>firmware-vX.Y.Z-&lt;board&gt;.zip</code> をダウンロード</li>
-          <li>「ファイル」App で ZIP をタップして展開 → 中の
-            <code>stackchan_idf.bin</code> が OTA ペイロード本体</li>
-          <li>(AP モードの場合) device の AP に Wi-Fi 接続し、このページを再度開く</li>
-          <li>上の「ファイル選択」で <code>stackchan_idf.bin</code> を選び「書き込み」</li>
+          <li>Download the <code>firmware-vX.Y.Z-&lt;board&gt;.zip</code> for your board</li>
+          <li>In the Files app, tap the ZIP to extract it → the
+            <code>stackchan_idf.bin</code> inside is the OTA payload</li>
+          <li>(In hotspot mode) Join the device's hotspot and open this page again</li>
+          <li>Use "Choose file" above to pick <code>stackchan_idf.bin</code> and press "Write"</li>
         </ol>
         <p class="hint" style="margin:0.25rem 0 0 0; font-size:0.8rem">
-          ※ <code>firmware-vX.Y.Z-&lt;board&gt;.bin</code> ではなく
-          <code>stackchan_idf.bin</code> の方を選んでください。前者はブートローダ+
-          パーティション+アプリの結合イメージ (USB 初回書き込み用) で OTA には使えません。
+          ※ <code>firmware-vX.Y.Z-&lt;board&gt;.bin</code> — not
+          <code>stackchan_idf.bin</code> . The latter is a combined bootloader + partition + app image (for first-time USB flashing) and cannot be used for OTA.
         </p>
       </details>
       <p id="ota-android-cpl-note" hidden
          style="margin:0.5rem 0; font-size:0.85rem; color:#664d03;
                 background:#fff3cd; border:1px solid #ffe69c;
                 padding:0.5rem 0.7rem; border-radius:6px; line-height:1.4">
-        ⚠ <strong>Android で「ファイル選択」が反応しない場合</strong>:
+        ⚠ <strong>If "Choose file" does nothing on Android</strong>:
         <ol style="margin:0.4rem 0 0 0; padding-left:1.2rem">
-          <li>この画面が「ネットワークにログイン」ミニブラウザ
-            (CaptivePortalLogin) で開いている場合、ファイル選択は動作しません。</li>
-          <li>右上の <strong>⋮ メニュー →「このネットワークをこのまま使用」</strong>
-            を選択してください (Stackchan AP への接続が維持されます)。</li>
-          <li><strong>Chrome</strong> を開いて
-            <code>http://192.168.4.1/</code> にアクセスし、そちらで
-            ファイル選択・OTA を実行してください。</li>
+          <li>If this page opened in the "Sign in to network" mini browser (CaptivePortalLogin), file selection does not work.</li>
+          <li>In the top right <strong>⋮ menu → "Use this network as is"</strong>
+            (this keeps the connection to the Stackchan hotspot).</li>
+          <li><strong>Chrome</strong> Open
+            <code>http://192.168.4.1/</code> , go to the address, and choose the file / run the OTA there.</li>
         </ol>
         <span style="display:block; margin-top:0.4rem">
-          ※ Android が「インターネット接続がありません」と表示しても、
-          接続は維持したままにしてください。元の Wi-Fi に自動で戻って
-          しまう場合は、Wi-Fi 設定で Stackchan AP を選び直してください。
+          * Even if Android says "No internet connection", stay connected. If it switches back to your usual Wi-Fi, choose the Stackchan hotspot again in Wi-Fi settings.
         </span>
       </p>
       <div class="ota-row">
         <input type="file" id="ota-file" accept=".bin">
-        <button id="btn-ota" type="button" disabled>書き込み</button>
+        <button id="btn-ota" type="button" disabled>Write</button>
       </div>
 
       <h3 class="section-title" style="margin-top:1rem; font-size:0.95rem">
-        release から直接取得 (device side fetch)
+        Get directly from a release (device side fetch)
       </h3>
       <p class="hint" style="margin-bottom:0.5rem">
-        device が <code>STA</code> 経由で GitHub Pages から自分宛のビルドを取得し
-        OTA 適用します。AP モード中でも STA がアップであれば動作 (APSTA)。STA が
-        ダウンの場合はエラーになるので、上の「ローカル ファイル」を使ってください。
+        The device downloads its own build from GitHub Pages over <code>STA</code> and applies it via OTA. Works in hotspot mode as long as home Wi-Fi is also up (APSTA). If home Wi-Fi is down it fails, so use "Local file" above.
       </p>
       <div class="ota-row">
-        <select id="ota-release-channel" title="正式版以外 (alpha / beta / rc) も一覧に出す"
+        <select id="ota-release-channel" title="Also list pre-releases (alpha / beta / rc)"
                 style="flex:0 0 6rem; padding:0.4rem; font-size:0.9rem"></select>
         <select id="ota-release-select"
                 style="flex:1; padding:0.4rem; font-family:monospace; font-size:0.9rem">
-          <option value="">— tag 一覧を読込中 —</option>
+          <option value="">— loading tag list —</option>
         </select>
         <input type="text" id="ota-release-tag" placeholder="v0.7.3"
                style="flex:0 0 8rem; padding:0.4rem; font-family:monospace; font-size:0.9rem">
-        <button id="btn-ota-release" type="button" disabled>release を適用</button>
+        <button id="btn-ota-release" type="button" disabled>Apply release</button>
       </div>
       <p class="hint" style="margin:0.25rem 0 0 0; font-size:0.8rem">
-        ドロップダウンで選ぶと右のテキスト欄に反映されます。手入力も可 (未来の
-        tag / 特殊 build)。ボード判定 (cores3 / atoms3r / atoms3 / stopwatch) は
-        device 側で自動。進捗は下の status バーに反映されます。
+        Picking from the dropdown fills the text box on the right. You can also type (future tag / special build). The board (cores3 / atoms3r / atoms3 / stopwatch) is detected on the device. Progress shows in the status bar below.
       </p>
       <p id="ota-release-ap-note" hidden
          style="margin:0.5rem 0 0 0; font-size:0.85rem; color:#664d03;
                 background:#fff3cd; border:1px solid #ffe69c;
                 padding:0.5rem 0.7rem; border-radius:6px; line-height:1.4">
-        ⚠ AP モード (STA 未接続) 中はリリース取得できません。上の「ローカル
-        ファイル アップロード」を使用してください。
+        ⚠ Releases cannot be fetched in hotspot mode (no home Wi-Fi). Use "Local file upload" above.
       </p>
 
       <div class="ota-status" id="ota-status">
         <div class="ota-bar"><div class="ota-bar-fill" id="ota-bar-fill"></div></div>
-        <div class="ota-stats" id="ota-stats">未開始</div>
+        <div class="ota-stats" id="ota-stats">Not started</div>
       </div>
     </div>
   </section><!-- /tab-panel "maint" -->
@@ -1077,8 +1044,7 @@
   <div class="log" id="log"></div>
 
   <p class="compat-note">
-    Wi-Fi 経由設定。家庭 LAN 上の他端末から API キーを盗聴される可能性があるので、
-    信頼できないネットワークでは BLE 版の設定ツールを使ってください。
+    Settings over Wi-Fi. Other devices on your home network could intercept API keys, so on untrusted networks use the Bluetooth settings tool instead.
   </p>
 </div>
 
@@ -1239,14 +1205,14 @@ StackchanSettings.setupSecretFields();
 
 async function sendLtConfig() {
   const json = StackchanSettings.buildLtConfigJson();
-  if (!json) { log('LT 設定: 変更なし', 'ok'); return false; }
+  if (!json) { log('LT settings: unchanged', 'ok'); return false; }
   await postText('/api/lt-config', json);
-  log('LT 設定送信 (即反映)', 'ok');
+  log('LT settings sent (applied)', 'ok');
   return true;
 }
 
 $('btn-lt-send').addEventListener('click', () => {
-  sendLtConfig().catch((e) => log('LT 設定送信失敗: ' + e.message, 'err'));
+  sendLtConfig().catch((e) => log('LT settings send failed: ' + e.message, 'err'));
 });
 
 // --- 単位連結 音声 DB (.jvox) ---
@@ -1255,17 +1221,17 @@ async function refreshVoiceDbStatus() {
   try {
     const st = await fetchJSON('/api/voice-db');
     $('voice-db-status').textContent = st.loaded
-      ? `状態: ロード済み (${st.units} 単位、保存 ${Math.round(st.stored/1024)} KiB)`
-      : (st.stored > 0 ? '状態: 保存済み・未ロード (PSRAM 不足?)' : '状態: 未登録 (フォルマント合成)');
-  } catch (e) { $('voice-db-status').textContent = '状態: 取得失敗'; }
+      ? `Status: loaded (${st.units} units, stored ${Math.round(st.stored/1024)} KiB)`
+      : (st.stored > 0 ? 'Status: stored but not loaded (not enough PSRAM?)' : 'Status: none (formant synthesis)');
+  } catch (e) { $('voice-db-status').textContent = 'Status: failed to read'; }
 }
 $('btn-voice-db-upload').addEventListener('click', async () => {
   const f = $('voice-db-file').files[0];
-  if (!f) { log('音声 DB: ファイルを選択してください', 'err'); return; }
+  if (!f) { log('Voice DB: please choose a file', 'err'); return; }
   const btn = $('btn-voice-db-upload');
   btn.disabled = true;
   const old = btn.textContent;
-  btn.textContent = '送信中…';
+  btn.textContent = 'Sending…';
   try {
     const r = await fetch('/api/voice-db', {
       method: 'POST',
@@ -1275,9 +1241,9 @@ $('btn-voice-db-upload').addEventListener('click', async () => {
     const body = await r.text();
     if (!r.ok) throw new Error(`HTTP ${r.status}: ${body}`);
     const st = JSON.parse(body);
-    log(`音声 DB 登録 (${st.units} 単位、${Math.round(st.stored/1024)} KiB)`, 'ok');
+    log(`Voice DB installed (${st.units} units, ${Math.round(st.stored/1024)} KiB)`, 'ok');
   } catch (e) {
-    log('音声 DB 登録失敗: ' + e.message, 'err');
+    log('Voice DB install failed: ' + e.message, 'err');
   } finally {
     btn.textContent = old;
     btn.disabled = false;
@@ -1285,13 +1251,13 @@ $('btn-voice-db-upload').addEventListener('click', async () => {
   }
 });
 $('btn-voice-db-clear').addEventListener('click', async () => {
-  if (!confirm('音声 DB を削除してフォルマント合成に戻します。よろしいですか?')) return;
+  if (!confirm('Delete the voice DB and go back to formant synthesis. Are you sure?')) return;
   try {
     const r = await fetch('/api/voice-db/clear', { method: 'POST' });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    log('音声 DB 削除', 'ok');
+    log('Voice DB deleted', 'ok');
   } catch (e) {
-    log('音声 DB 削除失敗: ' + e.message, 'err');
+    log('Voice DB delete failed: ' + e.message, 'err');
   }
   refreshVoiceDbStatus();
 });
@@ -1312,30 +1278,30 @@ async function refreshSanottsStatus() {
   try {
     const st = await fetchJSON('/api/sanotts');
     if (st.capacity === 0) {
-      $('sanotts-status').textContent = '状態: sanotts 領域なし (旧パーティション表)';
+      $('sanotts-status').textContent = 'Status: no sanotts partition (old partition table)';
     } else if (st.supported === false) {
-      $('sanotts-status').textContent = '状態: このファームウェアには sanoTTS エンジンが入っていません (取得・書き込み不可)';
+      $('sanotts-status').textContent = 'Status: this firmware has no sanoTTS engine (cannot download/write)';
     } else if (st.loaded) {
       $('sanotts-status').textContent =
-        `状態: ロード済み (${Math.round(st.stored/1024)} KiB / 上限 ${Math.round(st.capacity/1024)} KiB)`;
+        `Status: loaded (${Math.round(st.stored/1024)} KiB / max ${Math.round(st.capacity/1024)} KiB)`;
     } else {
-      $('sanotts-status').textContent = st.stored > 0 ? '状態: 保存済み・未ロード' : '状態: 未登録';
+      $('sanotts-status').textContent = st.stored > 0 ? 'Status: stored but not loaded' : 'Status: none';
     }
     return st;
-  } catch (e) { $('sanotts-status').textContent = '状態: 取得失敗'; }
+  } catch (e) { $('sanotts-status').textContent = 'Status: failed to read'; }
   return null;
 }
 
 $('btn-sanotts-fetch').addEventListener('click', async () => {
   const release = $('sanotts-release').value.trim();
   const file = $('sanotts-file').value.trim();
-  if (!release || !file) { log('リリース タグとファイル名を入力してください', 'err'); return; }
-  if (!confirm(`機体が GitHub Releases (ayutaz/sanoTTS-jp ${release}/${file}) から取得します。LICENSE-MODEL.md の条件に同意していますか？`)) return;
+  if (!release || !file) { log('Enter the release tag and file name', 'err'); return; }
+  if (!confirm(`The robot will download from GitHub Releases (ayutaz/sanoTTS-jp ${release}/${file}). Do you agree to the terms in LICENSE-MODEL.md?`)) return;
   const btn = $('btn-sanotts-fetch');
   const fs = $('sanotts-fetch-status');
   btn.disabled = true;
   fs.hidden = false;
-  fs.textContent = '機体がダウンロード中… (30 秒程度)';
+  fs.textContent = 'Robot is downloading… (about 30 seconds)';
   try {
     const r = await fetch('/api/sanotts/fetch', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1344,11 +1310,11 @@ $('btn-sanotts-fetch').addEventListener('click', async () => {
     const body = await r.text();
     if (!r.ok) throw new Error(`HTTP ${r.status}: ${body}`);
     const st = JSON.parse(body);
-    fs.textContent = `インストール完了 (${Math.round((st.stored||0)/1024)} KiB)`;
-    log(`sanoTTS 重みを取得+インストール: ${release}/${file}`, 'ok');
+    fs.textContent = `Install complete (${Math.round((st.stored||0)/1024)} KiB)`;
+    log(`Download + install sanoTTS weights: ${release}/${file}`, 'ok');
   } catch (e) {
-    fs.textContent = `失敗: ${e.message}`;
-    log(`sanoTTS 取得失敗: ${e.message}`, 'err');
+    fs.textContent = `Failed: ${e.message}`;
+    log(`sanoTTS download failed: ${e.message}`, 'err');
   } finally {
     btn.disabled = false;
     refreshSanottsStatus();
@@ -1357,29 +1323,29 @@ $('btn-sanotts-fetch').addEventListener('click', async () => {
 
 $('btn-sanotts-upload').addEventListener('click', async () => {
   const f = $('sanotts-upload-file').files[0];
-  if (!f) { log('重みファイルを選択してください', 'err'); return; }
+  if (!f) { log('Please choose a weights file', 'err'); return; }
   const fs = $('sanotts-fetch-status');
   fs.hidden = false;
-  fs.textContent = `デバイスへ転送中… (${Math.round(f.size/1024)} KiB)`;
+  fs.textContent = `Sending to device… (${Math.round(f.size/1024)} KiB)`;
   try {
     const r = await fetch('/api/sanotts', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: await f.arrayBuffer() });
     const body = await r.text();
     if (!r.ok) throw new Error(`HTTP ${r.status}: ${body}`);
-    fs.textContent = 'インストール完了';
-    log('sanoTTS 重みをアップロード', 'ok');
+    fs.textContent = 'Install complete';
+    log('Upload sanoTTS weights', 'ok');
   } catch (e) {
-    fs.textContent = `失敗: ${e.message}`;
-    log(`sanoTTS アップロード失敗: ${e.message}`, 'err');
+    fs.textContent = `Failed: ${e.message}`;
+    log(`sanoTTS upload failed: ${e.message}`, 'err');
   } finally { refreshSanottsStatus(); }
 });
 
 $('btn-sanotts-clear').addEventListener('click', async () => {
-  if (!confirm('sanoTTS の重みを削除しますか？')) return;
+  if (!confirm('Delete the sanoTTS weights?')) return;
   try {
     const r = await fetch('/api/sanotts/clear', { method: 'POST' });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    log('sanoTTS 重みを削除', 'ok');
-  } catch (e) { log(`削除失敗: ${e.message}`, 'err'); }
+    log('Delete sanoTTS weights', 'ok');
+  } catch (e) { log(`Delete failed: ${e.message}`, 'err'); }
   refreshSanottsStatus();
 });
 
@@ -1387,18 +1353,18 @@ async function refreshHmmVoiceStatus() {
   try {
     const st = await fetchJSON('/api/hmm-voice');
     if (st.capacity === 0) {
-      $('hmm-voice-status').textContent = '状態: voice パーティションなし (8 MB ボード / 旧パーティション表)';
+      $('hmm-voice-status').textContent = 'Status: no voice partition (8 MB board / old partition table)';
     } else if (st.loaded) {
       const name = hmmLabelForSize(st.stored);
       const who = name ? `${name} — ` : '';
       $('hmm-voice-status').textContent =
-        `状態: ロード済み (${who}${Math.round(st.stored/1024)} KiB / 上限 ${Math.round(st.capacity/1024)} KiB)`;
+        `Status: loaded (${who}${Math.round(st.stored/1024)} KiB / max ${Math.round(st.capacity/1024)} KiB)`;
     } else {
       $('hmm-voice-status').textContent = st.stored > 0
-        ? '状態: 保存済み・未ロード (メモリ不足?)' : '状態: 未登録';
+        ? 'Status: stored but not loaded (out of memory?)' : 'Status: none';
     }
     return st;
-  } catch (e) { $('hmm-voice-status').textContent = '状態: 取得失敗'; }
+  } catch (e) { $('hmm-voice-status').textContent = 'Status: failed to read'; }
   return null;
 }
 
@@ -1423,7 +1389,7 @@ async function loadHmmCatalog() {
     hmmCatalog = Array.isArray(m.voices) ? m.voices : [];
     sel.innerHTML = '';
     if (!hmmCatalog.length) {
-      sel.innerHTML = '<option value="">— 配布ボイスなし —</option>';
+      sel.innerHTML = '<option value="">— no published voices —</option>';
       return;
     }
     for (const v of hmmCatalog) {
@@ -1436,7 +1402,7 @@ async function loadHmmCatalog() {
     // 名前が引けるようになったので状態表示を更新。
     refreshHmmVoiceStatus();
   } catch (e) {
-    sel.innerHTML = '<option value="">— 一覧取得失敗 (ネット未接続?) —</option>';
+    sel.innerHTML = '<option value="">— could not load list (no internet?) —</option>';
   }
 }
 
@@ -1450,7 +1416,7 @@ $('hmm-voice-catalog').addEventListener('change', (e) => showHmmAttribution(e.ta
 // → そのバイト列を /api/hmm-voice に POST してデバイスにインストール。
 $('btn-hmm-voice-fetch').addEventListener('click', async () => {
   const id = $('hmm-voice-catalog').value;
-  if (!id) { log('取得するボイスを選択してください', 'err'); return; }
+  if (!id) { log('Please choose a voice to download', 'err'); return; }
   const v = hmmCatalog.find((x) => x.id === id);
   // マニフェストの url は base 相対 (例 "voices/mei.htsvoice")。
   const voiceUrl = `${VOICE_PAGES_BASE}/${(v && v.url) ? v.url : `voices/${id}.htsvoice`}`;
@@ -1458,13 +1424,13 @@ $('btn-hmm-voice-fetch').addEventListener('click', async () => {
   const old = btn.textContent;
   const fs = $('hmm-voice-fetch-status');
   btn.disabled = true;
-  btn.textContent = '取得中…';
+  btn.textContent = 'Loading…';
   fs.hidden = false;
-  fs.textContent = `${id} をダウンロード中…`;
+  fs.textContent = `Downloading ${id}…`;
   try {
     // 1) ブラウザが Pages から直接ダウンロード (進捗はストリームで)。
     const dl = await fetch(voiceUrl, { cache: 'no-store' });
-    if (!dl.ok) throw new Error(`ダウンロード HTTP ${dl.status}`);
+    if (!dl.ok) throw new Error(`Download HTTP ${dl.status}`);
     const total = Number(dl.headers.get('content-length')) || (v && v.size) || 0;
     let received = 0;
     const chunks = [];
@@ -1474,25 +1440,25 @@ $('btn-hmm-voice-fetch').addEventListener('click', async () => {
       if (done) break;
       chunks.push(value);
       received += value.length;
-      if (total) fs.textContent = `ダウンロード中 ${Math.round(received * 100 / total)}%  (${Math.round(received/1024)} / ${Math.round(total/1024)} KiB)`;
+      if (total) fs.textContent = `Downloading ${Math.round(received * 100 / total)}%  (${Math.round(received/1024)} / ${Math.round(total/1024)} KiB)`;
     }
     const blob = new Blob(chunks);
     const buf = await blob.arrayBuffer();
     // 2) デバイスに転送してインストール (TLS 不要のアップロード経路)。
-    fs.textContent = `デバイスへ転送中… (${Math.round(buf.byteLength/1024)} KiB)`;
+    fs.textContent = `Sending to device… (${Math.round(buf.byteLength/1024)} KiB)`;
     const up = await fetch('/api/hmm-voice', {
       method: 'POST',
       headers: { 'Content-Type': 'application/octet-stream' },
       body: buf,
     });
     const body = await up.text();
-    if (!up.ok) throw new Error(`インストール HTTP ${up.status}: ${body}`);
+    if (!up.ok) throw new Error(`Install HTTP ${up.status}: ${body}`);
     const st = JSON.parse(body);
-    fs.textContent = `インストール完了 (${Math.round((st.stored||0)/1024)} KiB)`;
-    log(`ボイス取得+インストール完了: ${id}`, 'ok');
+    fs.textContent = `Install complete (${Math.round((st.stored||0)/1024)} KiB)`;
+    log(`Voice downloaded + installed: ${id}`, 'ok');
   } catch (e) {
-    fs.textContent = '取得失敗: ' + e.message;
-    log('ボイス取得失敗: ' + e.message, 'err');
+    fs.textContent = 'Download failed: ' + e.message;
+    log('Voice download failed: ' + e.message, 'err');
   } finally {
     btn.textContent = old;
     btn.disabled = false;
@@ -1501,11 +1467,11 @@ $('btn-hmm-voice-fetch').addEventListener('click', async () => {
 });
 $('btn-hmm-voice-upload').addEventListener('click', async () => {
   const f = $('hmm-voice-file').files[0];
-  if (!f) { log('HMM ボイス: ファイルを選択してください', 'err'); return; }
+  if (!f) { log('HMM voice: please choose a file', 'err'); return; }
   const btn = $('btn-hmm-voice-upload');
   btn.disabled = true;
   const old = btn.textContent;
-  btn.textContent = '送信中…';
+  btn.textContent = 'Sending…';
   try {
     const r = await fetch('/api/hmm-voice', {
       method: 'POST',
@@ -1515,9 +1481,9 @@ $('btn-hmm-voice-upload').addEventListener('click', async () => {
     const body = await r.text();
     if (!r.ok) throw new Error(`HTTP ${r.status}: ${body}`);
     const st = JSON.parse(body);
-    log(`HMM ボイス登録 (${Math.round(st.stored/1024)} KiB)`, 'ok');
+    log(`HMM voice installed (${Math.round(st.stored/1024)} KiB)`, 'ok');
   } catch (e) {
-    log('HMM ボイス登録失敗: ' + e.message, 'err');
+    log('HMM voice install failed: ' + e.message, 'err');
   } finally {
     btn.textContent = old;
     btn.disabled = false;
@@ -1525,13 +1491,13 @@ $('btn-hmm-voice-upload').addEventListener('click', async () => {
   }
 });
 $('btn-hmm-voice-clear').addEventListener('click', async () => {
-  if (!confirm('HMM ボイスを削除します。よろしいですか?')) return;
+  if (!confirm('Delete the HMM voice. Are you sure?')) return;
   try {
     const r = await fetch('/api/hmm-voice/clear', { method: 'POST' });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    log('HMM ボイス削除', 'ok');
+    log('HMM voice deleted', 'ok');
   } catch (e) {
-    log('HMM ボイス削除失敗: ' + e.message, 'err');
+    log('HMM voice delete failed: ' + e.message, 'err');
   }
   refreshHmmVoiceStatus();
 });
@@ -1614,7 +1580,7 @@ async function refresh() {
          + (s.battery_mv / 1000).toFixed(2) + 'V ' + (s.battery_ma | 0) + 'mA');
 
     $('ssid').value = s.ssid || '';
-    $('provider').value = String(s.provider ?? 0);
+    $('provider').value = String(s.provider ?? 3);
     $('openai-enabled').checked = !!s.openai_enabled;
     if (typeof s.operation_mode === 'number') {
       $('operation-mode').value = String(s.operation_mode);
@@ -1638,21 +1604,21 @@ async function refresh() {
     $('bat-gauge-enabled').checked = (s.battery_gauge_enabled !== false); // default on if absent
     $('startup-arpeggio-enabled').checked = (s.startup_arpeggio_enabled !== false); // default on if absent
     $('servo-enabled').checked = (s.servo_enabled !== false); // default on if absent
-    $('mcp-token-state').textContent = s.has_mcp_token ? '設定済' : '未設定';
+    $('mcp-token-state').textContent = s.has_mcp_token ? 'set' : 'not set';
     // Device name + auth password (auth password is write-only — never
     // returned, only a has_* flag).
     $('device-name').value = s.device_name || '';
     $('device-name').dataset.initial = s.device_name || '';
     $('auth-password-state').textContent = s.has_auth_password
-      ? '(設定済 — 変更しない場合は空欄)'
-      : '(未設定 — 空欄なら認証なし)';
+      ? '(set — leave blank to keep)'
+      : '(not set — blank = no password)';
     // ffmpeg send examples. This page is served by the device, so its own
     // hostname is the RTP destination.
     const h = location.hostname || (s.ip || '');
     $('rtp-audio-cmd').textContent =
-      `# L16 (非圧縮)  udp/6970\n` +
+      `# L16 (uncompressed)  udp/6970\n` +
       `ffmpeg -re -i IN -ac 1 -ar 48000 -c:a pcm_s16be -f rtp rtp://${h}:6970\n` +
-      `# AAC (圧縮)    udp/6972\n` +
+      `# AAC (compressed)    udp/6972\n` +
       `ffmpeg -re -i IN -ac 1 -ar 48000 -c:a aac -f rtp rtp://${h}:6972\n` +
       `# mu-law (OBS)  udp/6970\n` +
       `ffmpeg -re -i IN -ac 1 -ar 8000 -c:a pcm_mulaw -f rtp rtp://${h}:6970`;
@@ -1671,7 +1637,7 @@ async function refresh() {
     $('conv-headers').dataset.initial = s.conv_extra_headers || '';
     $('agent-url').value = s.agent_url || '';
     $('agent-url').dataset.initial = s.agent_url || '';
-    $('agent-token').placeholder = s.has_agent_token ? '（設定済み / 変更しない場合は空欄）' : '（未設定）';
+    $('agent-token').placeholder = s.has_agent_token ? '(already set — leave blank to keep)' : '(not set)';
 
     setFlag('flag-ssid', !!s.ssid);
     setFlag('flag-pass', !!s.has_password);
@@ -1683,13 +1649,13 @@ async function refresh() {
 
     if (s.wifi_connected) {
       setDot('wifi-dot', 'wifi-connected');
-      $('wifi-label').textContent = 'Wi-Fi: 接続中';
+      $('wifi-label').textContent = 'Wi-Fi: connecting';
     } else {
       setDot('wifi-dot', '');
       $('wifi-label').textContent = 'Wi-Fi: —';
     }
     setDot('http-dot', 'http-connected');
-    $('http-label').textContent = 'HTTP 接続中';
+    $('http-label').textContent = 'Connecting over HTTP';
     $('btn-ota').disabled = false;
     // Apply 成功後はボタンを無効化したままにしている (再起動待ち)。デバイスが
     // 戻って状態取得が通ったここで再有効化しないと、ページを開き直さない限り
@@ -1712,11 +1678,11 @@ async function refresh() {
     // Failure (STA down) leaves the dropdown showing its "取得失敗"
     // placeholder — manual tag entry still works.
     loadReleaseVersions();
-    log('状態取得 OK', 'ok');
+    log('Status OK', 'ok');
   } catch (e) {
     setDot('http-dot', 'http-error');
-    $('http-label').textContent = '接続失敗';
-    log('状態取得失敗: ' + e.message, 'err');
+    $('http-label').textContent = 'Connection failed';
+    log('Status failed: ' + e.message, 'err');
   }
 }
 
@@ -1740,15 +1706,15 @@ async function apply() {
     const servoEn = $('servo-enabled').checked;
     const jtts = readJttsForm();
 
-    if (ssid)      { await postText('/api/ssid', ssid);                       log('SSID 送信', 'ok'); }
-    if (pass)      { await postText('/api/password', pass);                   log('パスワード送信', 'ok'); }
-    if (apiKey)    { await postText('/api/api-key', apiKey);                  log('OpenAI キー送信', 'ok'); }
-    if (geminiKey) { await postText('/api/gemini-api-key', geminiKey);        log('Gemini キー送信', 'ok'); }
-    if (xaiKey)    { await postText('/api/xai-api-key', xaiKey);              log('xAI キー送信', 'ok'); }
+    if (ssid)      { await postText('/api/ssid', ssid);                       log('Sending Wi-Fi name', 'ok'); }
+    if (pass)      { await postText('/api/password', pass);                   log('Sending password', 'ok'); }
+    if (apiKey)    { await postText('/api/api-key', apiKey);                  log('Sending OpenAI key', 'ok'); }
+    if (geminiKey) { await postText('/api/gemini-api-key', geminiKey);        log('Sending Gemini key', 'ok'); }
+    if (xaiKey)    { await postText('/api/xai-api-key', xaiKey);              log('Sending xAI key', 'ok'); }
     const xzUrl = $('xiaozhi-url').value.trim();
     const xzToken = $('xiaozhi-token').value;
-    if (xzUrl)     { await postText('/api/xiaozhi-url', xzUrl);               log('XiaoZhi URL 送信', 'ok'); }
-    if (xzToken)   { await postText('/api/xiaozhi-token', xzToken);           log('XiaoZhi トークン送信', 'ok'); }
+    if (xzUrl)     { await postText('/api/xiaozhi-url', xzUrl);               log('Sending XiaoZhi URL', 'ok'); }
+    if (xzToken)   { await postText('/api/xiaozhi-token', xzToken);           log('Sending XiaoZhi token', 'ok'); }
     await postText('/api/provider', provider);
     await postText('/api/operation-mode', $('operation-mode').value);
     await postText('/api/audio-output', $('audio-output').value);
@@ -1764,14 +1730,14 @@ async function apply() {
     const devName = $('device-name').value;
     if (devName !== ($('device-name').dataset.initial || '')) {
       await postText('/api/device-name', devName);
-      log('デバイス名送信', 'ok');
+      log('Sending device name', 'ok');
     }
     // Auth password: push when the user typed something OR explicitly hit
     // "クリア" (dataset.cleared = 1 → send empty string = disable auth).
     const authEl = $('auth-password');
     if (authEl.value || authEl.dataset.cleared === '1') {
       await postText('/api/auth-password', authEl.value);
-      log(authEl.value ? '認証パスワード送信' : '認証パスワード クリア', 'ok');
+      log(authEl.value ? 'Sending settings password' : 'Clearing settings password', 'ok');
       delete authEl.dataset.cleared;
     }
     await postText('/api/openai-enabled', enabled ? '1' : '0');
@@ -1789,41 +1755,41 @@ async function apply() {
     const mcpEl = $('mcp-token');
     if (mcpEl.value || mcpEl.dataset.cleared === '1') {
       await postText('/api/mcp-token', mcpEl.value);
-      log('MCP API トークン送信', 'ok');
+      log('Sending MCP API token', 'ok');
       mcpEl.value = '';
       delete mcpEl.dataset.cleared;
     }
-    if (jtts)      { await postText('/api/jtts-config', jtts);                log('jtts 設定送信', 'ok'); }
+    if (jtts)      { await postText('/api/jtts-config', jtts);                log('Sending jtts settings', 'ok'); }
     // LT timekeeper: send whatever's in the form so Apply persists it
     // (the POST stages it server-side; /api/apply writes NVS).
     await sendLtConfig();
     // Servo limits: send the canonical JSON every Apply (cheap; server-side merge ignores no-ops).
-    await postText('/api/servo-limits', servoCal.formJson());                 log('サーボ設定送信', 'ok');
+    await postText('/api/servo-limits', servoCal.formJson());                 log('Sending servo settings', 'ok');
     // System prompt: send only when changed (empty after a change = reset to
     // the firmware default; unchanged = leave the stored prompt untouched).
     const sysPrompt = $('system-prompt').value;
     if (sysPrompt !== ($('system-prompt').dataset.initial ?? '')) {
-      await postText('/api/system-prompt', sysPrompt);                        log('システムプロンプト送信', 'ok');
+      await postText('/api/system-prompt', sysPrompt);                        log('Sending system prompt', 'ok');
     }
     const convHeaders = $('conv-headers').value;
     if (convHeaders !== ($('conv-headers').dataset.initial ?? '')) {
-      await postText('/api/conv-headers', convHeaders);                       log('追加 HTTP ヘッダ送信', 'ok');
+      await postText('/api/conv-headers', convHeaders);                       log('Sending extra HTTP headers', 'ok');
     }
     const agentUrl = $('agent-url').value.trim();
     if (agentUrl !== ($('agent-url').dataset.initial ?? '')) {
-      await postText('/api/agent-url', agentUrl);                             log('エージェント URL 送信', 'ok');
+      await postText('/api/agent-url', agentUrl);                             log('Sending agent URL', 'ok');
     }
     if ($('agent-token').value) {
-      await postText('/api/agent-token', $('agent-token').value);             log('エージェント トークン送信', 'ok');
+      await postText('/api/agent-token', $('agent-token').value);             log('Sending agent token', 'ok');
       $('agent-token').value = '';
     }
 
     await postText('/api/apply', '');
-    log('Apply 完了 — デバイスは ~200ms 後に再起動します', 'ok');
+    log('Saved — the device restarts in ~200 ms', 'ok');
     setDot('http-dot', '');
-    $('http-label').textContent = '再起動中';
+    $('http-label').textContent = 'Restarting';
   } catch (e) {
-    log('Apply 失敗: ' + e.message, 'err');
+    log('Save failed: ' + e.message, 'err');
     $('btn-apply').disabled = false;
   }
 }
@@ -1848,9 +1814,9 @@ function fmtBytes(n) {
 
 async function startOta() {
   const file = $('ota-file').files[0];
-  if (!file) { log('ファイル未選択', 'err'); return; }
+  if (!file) { log('No file selected', 'err'); return; }
   if (!file.name.toLowerCase().endsWith('.bin')) {
-    log('firmware.bin を選んでください (ZIP 非対応)', 'err');
+    log('Please choose firmware.bin (ZIP not supported)', 'err');
     return;
   }
 
@@ -1860,18 +1826,18 @@ async function startOta() {
   const bar = $('ota-bar-fill');
   const stats = $('ota-stats');
   bar.style.width = '0';
-  stats.textContent = '準備中…';
+  stats.textContent = 'Preparing…';
   otaCancel = false;
 
   const t0 = performance.now();
   try {
     const bytes = new Uint8Array(await file.arrayBuffer());
-    log(`OTA 開始: ${fmtBytes(bytes.length)}`);
+    log(`OTA start: ${fmtBytes(bytes.length)}`);
 
     await postText('/api/ota/control', JSON.stringify({ op: 'begin', size: bytes.length }));
 
     for (let off = 0; off < bytes.length; off += OTA_CHUNK_SIZE) {
-      if (otaCancel) throw new Error('中断');
+      if (otaCancel) throw new Error('Aborted');
       const slice = bytes.subarray(off, Math.min(off + OTA_CHUNK_SIZE, bytes.length));
       await postBinary('/api/ota/data', slice);
       const pct = ((off + slice.length) * 100 / bytes.length);
@@ -1883,12 +1849,12 @@ async function startOta() {
 
     await postText('/api/ota/control', JSON.stringify({ op: 'end' }));
     bar.style.width = '100%';
-    stats.textContent = '完了 — 再起動します';
-    log('OTA 完了 — 新ファームに再起動', 'ok');
+    stats.textContent = 'Done — restarting';
+    log('OTA complete — restarting into new firmware', 'ok');
   } catch (e) {
-    log('OTA 失敗: ' + e.message, 'err');
+    log('OTA failed: ' + e.message, 'err');
     try { await postText('/api/ota/control', JSON.stringify({ op: 'abort' })); } catch {}
-    stats.textContent = '失敗: ' + e.message;
+    stats.textContent = 'Failed: ' + e.message;
   } finally {
     $('btn-ota').disabled = false;
     $('btn-refresh').disabled = false;
@@ -1921,7 +1887,7 @@ function renderReleaseVersions() {
   const arr = StackchanSettings.filterReleases(releaseVersionsAll, $('ota-release-channel').value);
   sel.innerHTML = '';
   if (arr.length === 0) {
-    sel.innerHTML = '<option value="">— このチャンネルにリリースはありません —</option>';
+    sel.innerHTML = '<option value="">— no releases on this channel —</option>';
     return;
   }
   arr.forEach((v, idx) => {
@@ -1929,7 +1895,7 @@ function renderReleaseVersions() {
     opt.value = v.tag;
     // Suffix the currently-running tag so the user can spot it.
     const label = StackchanSettings.releaseLabel(v);
-    opt.textContent = (v.tag === runningFw) ? `${label}  (現在)` : label;
+    opt.textContent = (v.tag === runningFw) ? `${label}  (current)` : label;
     // Default to the newest tag that isn't the one we're already on.
     if (idx === 0 && v.tag !== runningFw) opt.selected = true;
     sel.appendChild(opt);
@@ -1954,9 +1920,9 @@ async function loadReleaseVersions() {
     }
     renderReleaseVersions();
     releaseVersionsLoaded = true;
-    log(`release tag ${arr.length} 件取得 (表示 ${$('ota-release-select').options.length} 件)`, 'ok');
+    log(`Got ${arr.length} release tags (showing ${$('ota-release-select').options.length})`, 'ok');
   } catch (e) {
-    sel.innerHTML = '<option value="">— tag 取得失敗 (STA down?) —</option>';
+    sel.innerHTML = '<option value="">— could not get tags (home Wi-Fi down?) —</option>';
     // Non-fatal — user can still manually type a tag.
   }
 }
@@ -1968,7 +1934,7 @@ async function loadReleaseVersions() {
 // into, so the visual feedback is unified.
 async function startReleaseOta() {
   const tag = $('ota-release-tag').value.trim();
-  if (!tag) { log('tag を入力してください (例: v0.7.3)', 'err'); return; }
+  if (!tag) { log('Please enter a tag (e.g. v0.7.3)', 'err'); return; }
 
   $('btn-ota').disabled = true;
   $('btn-ota-release').disabled = true;
@@ -1977,7 +1943,7 @@ async function startReleaseOta() {
   const bar = $('ota-bar-fill');
   const stats = $('ota-stats');
   bar.style.width = '0';
-  stats.textContent = `release ${tag} を device 側で取得中…`;
+  stats.textContent = `Device is fetching release ${tag}…`;
 
   try {
     const r = await fetch('/api/ota/release', {
@@ -1989,7 +1955,7 @@ async function startReleaseOta() {
       const t = await r.text();
       throw new Error(`HTTP ${r.status}: ${t}`);
     }
-    log(`release fetch 開始: ${tag}`, 'ok');
+    log(`release fetch started: ${tag}`, 'ok');
 
     // Poll /api/ota/status until phase != idle and != receiving. The worker
     // updates state through the same ota.cpp dispatcher the BLE / local-
@@ -2004,8 +1970,8 @@ async function startReleaseOta() {
         // Treat as success; the new firmware will re-attach to STA + Wi-Fi
         // and the page will reload manually.
         bar.style.width = '100%';
-        stats.textContent = '完了 — device 再起動中';
-        log('release OTA 完了 — 新ファームに再起動', 'ok');
+        stats.textContent = 'Done — device restarting';
+        log('release OTA complete — restarting into new firmware', 'ok');
         return;
       }
       if (s.state === 'receiving' && s.total > 0) {
@@ -2016,23 +1982,23 @@ async function startReleaseOta() {
           // Detect a stalled worker (network problem). After ~30 s of no
           // progress, surface a warning but don't kill the transfer —
           // recovery is possible.
-          if (++stagnantTicks === 38) log('進捗停止 (STA リンク不調?)', 'err');
+          if (++stagnantTicks === 38) log('Progress stalled (home Wi-Fi link trouble?)', 'err');
         } else {
           stagnantTicks = 0;
           lastReceived = s.received;
         }
       } else if (s.state === 'done') {
         bar.style.width = '100%';
-        stats.textContent = '完了 — device 再起動中';
-        log('release OTA 完了 — 新ファームに再起動', 'ok');
+        stats.textContent = 'Done — device restarting';
+        log('release OTA complete — restarting into new firmware', 'ok');
         return;
       } else if (s.state === 'failed') {
         throw new Error(s.error || 'unknown');
       }
     }
   } catch (e) {
-    log('release OTA 失敗: ' + e.message, 'err');
-    stats.textContent = '失敗: ' + e.message;
+    log('release OTA failed: ' + e.message, 'err');
+    stats.textContent = 'Failed: ' + e.message;
   } finally {
     $('btn-ota').disabled = false;
     $('btn-ota-release').disabled = false;
@@ -2049,8 +2015,8 @@ async function startReleaseOta() {
 // live}) is normalised to the shared {ok, saved, note, raw} shape here.
 StackchanSettings.setupDslEditor({
   isConnected: () => true,
-  notConnectedMsg: '未接続',
-  compilerMissingMsg: 'DSL コンパイラ バンドルが読込み失敗 (firmware ビルド不一致の可能性)',
+  notConnectedMsg: 'Not connected',
+  compilerMissingMsg: 'Failed to load the DSL compiler bundle (firmware build mismatch?)',
   async send(u8) {
     const r = await fetch('/api/avatar-dsl', {
       method: 'POST',
@@ -2065,7 +2031,7 @@ StackchanSettings.setupDslEditor({
       return {
         ok: true,
         saved: parsed.saved,
-        note: parsed.live === false ? ' (NVS のみ書込、live 反映は失敗)' : '',
+        note: parsed.live === false ? ' (saved to flash only, live apply failed)' : '',
         raw: body,
       };
     }
@@ -2083,6 +2049,12 @@ StackchanSettings.setupDslEditor({
 
 $('btn-refresh').addEventListener('click', refresh);
 $('btn-apply').addEventListener('click', apply);
+// The big "Save & Restart" button on the Setup tab mirrors the header one
+// (same handler, same enabled/disabled state).
+$('btn-apply-main').addEventListener('click', () => { if (!$('btn-apply').disabled) apply(); });
+$('btn-apply-main').disabled = $('btn-apply').disabled;
+new MutationObserver(() => { $('btn-apply-main').disabled = $('btn-apply').disabled; })
+  .observe($('btn-apply'), { attributes: true, attributeFilter: ['disabled'] });
 $('btn-ota').addEventListener('click', startOta);
 $('btn-ota-release').addEventListener('click', startReleaseOta);
 
@@ -2097,7 +2069,7 @@ async function cameraCapture(query) {
   const btn = $('btn-camera-capture');
   const msg = $('camera-msg');
   btn.disabled = true;
-  msg.textContent = '撮影中… (~1 秒)';
+  msg.textContent = 'Taking photo… (~1 s)';
   try {
     const r = await fetch('/api/camera/capture' + (query || ''), { cache: 'no-store' });
     if (!r.ok) throw new Error('HTTP ' + r.status + ': ' + await r.text());
@@ -2174,10 +2146,10 @@ async function cameraCapture(query) {
     }
     $('btn-camera-save').disabled = false;
     msg.textContent = `${w}×${h} ${fmt} — ${new Date().toLocaleTimeString()}`;
-    log('カメラ撮影 OK (' + fmt + ')', 'ok');
+    log('Camera photo OK (' + fmt + ')', 'ok');
   } catch (e) {
-    msg.textContent = '失敗: ' + e.message;
-    log('カメラ撮影失敗: ' + e.message, 'err');
+    msg.textContent = 'Failed: ' + e.message;
+    log('Camera photo failed: ' + e.message, 'err');
   } finally {
     btn.disabled = false;
   }
@@ -2215,7 +2187,7 @@ function cameraSaveRawPgm() {
 // decimal; results echo into the value box + the log.
 function cameraRegParse(id) {
   const v = parseInt($(id).value.trim(), $(id).value.trim().startsWith('0x') ? 16 : 10);
-  if (!Number.isFinite(v) || v < 0 || v > 255) throw new Error($(id).value + ' は 0..255 で指定してください');
+  if (!Number.isFinite(v) || v < 0 || v > 255) throw new Error($(id).value + ' must be 0..255');
   return v;
 }
 async function cameraRegAccess(write) {
@@ -2235,7 +2207,7 @@ async function cameraRegAccess(write) {
     $('camera-reg-value').value = '0x' + j.value.toString(16).padStart(2, '0');
     log(`reg P${j.page}:0x${j.reg.toString(16).padStart(2, '0')} ${write ? '←' : '='} 0x${j.value.toString(16).padStart(2, '0')}`, 'ok');
   } catch (e) {
-    log('レジスタ アクセス失敗: ' + e.message, 'err');
+    log('Register access failed: ' + e.message, 'err');
   }
 }
 
@@ -2286,7 +2258,7 @@ async function stampRebootBadges() {
     const need = reboot.has(rid);
     const b = document.createElement('span');
     b.className = 'reboot-badge';
-    b.textContent = need ? '⟳ 再起動が必要' : '⚡ 即時反映';
+    b.textContent = need ? '⟳ Needs restart' : '⚡ Applies instantly';
     b.style.cssText = 'display:inline-block;margin:.15em 0 0 .1em;font-size:.72em;' +
       'padding:.05em .45em;border-radius:4px;vertical-align:middle;' +
       (need ? 'background:#fdecea;color:#b71c1c;' : 'background:#e8f5e9;color:#1b5e20;');
@@ -2327,7 +2299,7 @@ async function loadMicLipGain() {
     $('mic-lip-output-value').textContent = String(outPct);
     micLipLoaded = true;
   } catch (e) {
-    log(`mic-lip-gain 読み出し失敗: ${e.message}`, 'err');
+    log(`mic-lip-gain read failed: ${e.message}`, 'err');
   }
 }
 
@@ -2341,7 +2313,7 @@ async function writeMicLipGain() {
       body: JSON.stringify({ input_pct: inPct, output_pct: outPct }),
     });
   } catch (e) {
-    log(`mic-lip-gain 書き込み失敗: ${e.message}`, 'err');
+    log(`mic-lip-gain write failed: ${e.message}`, 'err');
   }
 }
 
@@ -2378,7 +2350,7 @@ async function loadSpeakerVolume() {
     $('speaker-volume-value').textContent = String(pct);
     speakerVolumeLoaded = true;
   } catch (e) {
-    log(`speaker-volume 読み出し失敗: ${e.message}`, 'err');
+    log(`speaker-volume read failed: ${e.message}`, 'err');
   }
 }
 
@@ -2394,7 +2366,7 @@ async function writeSpeakerVolume() {
       body: String(pct),
     });
   } catch (e) {
-    log(`speaker-volume 書き込み失敗: ${e.message}`, 'err');
+    log(`speaker-volume write failed: ${e.message}`, 'err');
   }
 }
 
@@ -2425,12 +2397,12 @@ async function sayJtts(text) {
       body: text,
     });
     if (r.ok) {
-      log(`jtts 試し発話: 「${text}」`, 'ok');
+      log(`jtts test speech: "${text}"`, 'ok');
     } else {
-      log(`jtts 試し発話 失敗: HTTP ${r.status}`, 'err');
+      log(`jtts test speech failed: HTTP ${r.status}`, 'err');
     }
   } catch (e) {
-    log(`jtts 試し発話 失敗: ${e.message}`, 'err');
+    log(`jtts test speech failed: ${e.message}`, 'err');
   }
 }
 
@@ -2452,7 +2424,7 @@ StackchanSettings.setupTabs('stackchan.settings.wifi.activeTab');
 
 // ===== Conversation-status LED feedback (/api/led-conv) =====================
 (function ledConvSetup() {
-  const PATTERNS = [[0,'通常どおり'],[1,'点灯'],[2,'呼吸 (速)'],[3,'回転'],[4,'点滅'],[5,'口の動きに連動']];
+  const PATTERNS = [[0,'As normal'],[1,'Solid'],[2,'Breathing (fast)'],[3,'Rotate'],[4,'Blink'],[5,'Follow mouth']];
   const GROUPS = ['listen','work','talk'];
   for (const g of GROUPS) {
     const sel = $(`led-conv-${g}-pattern`);
@@ -2489,8 +2461,8 @@ StackchanSettings.setupTabs('stackchan.settings.wifi.activeTab');
         const r = await fetch('/api/led-conv', { method: 'POST', headers: { 'Content-Type': 'application/json' },
                                                  body: JSON.stringify(body) });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        log('会話ステータスの LED 設定を適用', 'ok');
-      } catch (e) { log(`会話ステータスの LED 設定に失敗: ${e.message}`, 'err'); }
+        log('Applied conversation status LED settings', 'ok');
+      } catch (e) { log(`Conversation status LED settings failed: ${e.message}`, 'err'); }
     }, 200);
   }
   $('led-conv-sync').addEventListener('change', schedule);
@@ -2510,13 +2482,13 @@ StackchanSettings.proxSetupApply(async (v) => {
   const r = await fetch('/api/proximity', { method: 'POST', headers: { 'Content-Type': 'application/json' },
                                              body: JSON.stringify(v) });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  log(`近接の閾値を適用 (near=${v.near} far=${v.far})`, 'ok');
+  log(`Applied proximity thresholds (near=${v.near} far=${v.far})`, 'ok');
 });
 StackchanSettings.proxSetupTuning(async (v) => {
   const r = await fetch('/api/proximity', { method: 'POST', headers: { 'Content-Type': 'application/json' },
                                              body: JSON.stringify(v) });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  log(`近接センサー調整を適用 (gain=${['x16','x32','x64'][v.gain]} LED=${[5,10,20,50,100][v.led_current]}mA pulses=${v.pulses} offset=${v.offset})`, 'ok');
+  log(`Applied proximity sensor tuning (gain=${['x16','x32','x64'][v.gain]} LED=${[5,10,20,50,100][v.led_current]}mA pulses=${v.pulses} offset=${v.offset})`, 'ok');
 });
 // Seed the tuning form from the device once at load (status has only the thresholds).
 fetch('/api/proximity', { cache: 'no-store' }).then(r => r.ok ? r.json() : null)
