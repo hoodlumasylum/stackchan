@@ -130,6 +130,40 @@ compile-time default can be given via `sdkconfig.defaults.local` (gitignored).
 
 ## Using Grok (xAI)
 
+### Quick start (CoreS3, no build needed)
+
+1. Download `stackchan-grok-cores3-en.bin` from the latest
+   [release](https://github.com/hoodlumasylum/stackchan/releases).
+2. Plug the CoreS3 into a computer with a USB-C cable and open
+   <https://espressif.github.io/esptool-js/> in desktop Chrome or Edge.
+   Press **Connect** and pick the device, press **Erase Flash** and wait, then
+   add the `.bin` at address **0x0** and press **Program**. (If the board is not
+   found, hold the reset button until the green LED blinks, then try again.)
+3. Press the reset button. On first boot, with no Wi-Fi saved, Stack-chan starts
+   its setup hotspot by itself and the screen shows (English):
+   `Setup: scan QR or join Wi-Fi` with a QR code and
+   `1. Join Wi-Fi: Stackchan-XXXXXX`, `2. Password: sc-xxxxxxxx`,
+   `3. Open http://192.168.4.1`.
+4. With your phone, scan the QR code (or join that Wi-Fi with that password).
+   The setup page opens by itself, or open <http://192.168.4.1>.
+5. On the **Setup** tab, fill in the three fields under **Quick setup**:
+   **Wi-Fi name (SSID)**, **Wi-Fi password** and **xAI API key**
+   (get one at <https://console.x.ai/>), then press the big green
+   **Save & Restart** button.
+6. Stack-chan restarts, joins your Wi-Fi and is ready to talk: the top-right
+   badge goes *Connecting* → *Ready*; speak and it shows *Listening* →
+   *Thinking* → *Speaking*.
+
+Everything else is already set: the AI provider is **xAI Grok Voice**, the
+operation mode is **Conversation**, the voice is **Ara**, the built-in
+personality replies in **English** (you can replace it with your own
+*System prompt* on the **Chat** tab), and the clock uses UK time. The whole
+on-device menu and the settings pages are in English. To change Wi-Fi later:
+tap the top-right corner of the screen to open the menu → **Control** tab →
+**Wi-Fi setup (hotspot)**.
+
+### How it works
+
 Stack-chan can talk through the **xAI Grok Voice Agent**
 (`wss://api.x.ai/v1/realtime`), which is OpenAI Realtime-compatible. It reuses
 the OpenAI Realtime client, so tool calling (`set_expression` /
@@ -162,39 +196,34 @@ make monitor    BOARD=cores3 PORT=/dev/ttyACM0   # optional: watch the log
 `make build IDF_PATH=/path/to/esp-idf`.) If the board is not detected, hold
 the reset button until the green LED blinks to enter download mode.
 
-### Configure Wi-Fi, xAI key and provider
+### Configure Wi-Fi, xAI key and provider (other ways)
 
-Get an API key at <https://console.x.ai/>. Then use any of the settings paths:
+On a fresh / erased device the provider already defaults to Grok and the mode
+to Conversation, so normally only Wi-Fi + the xAI key are needed (see Quick
+start). Other paths:
 
-- **Wi-Fi settings page** (easiest): on first boot without Wi-Fi, enter AP
-  mode on the device (Control tab → "AP モード"), join `Stackchan-XXXXXX`
-  (scan the QR on the LCD) and the captive portal opens the settings page. Or,
-  if the device is already on your network, open `http://stackchan-XXXXXX.local/`.
-  1. **接続 (Connection)** tab: set *Wi-Fi SSID* / password and set the
-     operation mode to **会話応答 (Conversation)**.
-  2. **会話 (Conversation)** tab: set **会話プロバイダ (provider)** to
-     **xAI Grok Voice** and paste the key into **xAI API キー (Grok)**.
-  3. Press **保存 & 再起動 (Save & restart)**. The header flag **X** lights up
-     once an xAI key is stored.
-- **BLE settings page**: the hosted upstream page does not know the new
-  field yet, so serve this repo's copy locally (Web Bluetooth needs
+- **Wi-Fi settings page** when the device is already on your network: open
+  `http://stackchan-XXXXXX.local/` (or its IP, shown on the menu's **Info**
+  tab). The **Setup** tab has the Quick setup fields; the AI provider, system
+  prompt etc. are on the **Chat** tab.
+- **BLE settings page**: serve this repo's copy locally (Web Bluetooth needs
   `https` or `localhost`): `cd tools && python3 -m http.server 8000`, open
   <http://localhost:8000/settings.html> in desktop Chrome / Edge, press
-  **BLE 接続**, then fill in the same fields and press **保存 & 再起動**.
+  **Connect (Bluetooth)**, fill in the same fields and press **Save & Restart**.
 - **HTTP API** (scripting): `POST /api/xai-api-key` (body = key),
   `POST /api/provider` (body = `3`), then apply/restart as the page does.
 - **Build-time fallback**: `CONFIG_STACKCHAN_XAI_API_KEY="xai-..."` in the
   gitignored `sdkconfig.defaults.local` is used when no key is stored in NVS.
   Never commit a key.
 
-Provider values are `0` OpenAI, `1` Gemini, `2` XiaoZhi, `3` Grok. The on-device
-conversation page shows *サービス: xAI Grok* when it is selected.
+Provider values are `0` OpenAI, `1` Gemini, `2` XiaoZhi, `3` Grok (default).
+The on-device **Chat** tab shows *Service: xAI Grok* when it is selected.
 
 ### Troubleshooting
 
 - `credentials empty for selected provider` in the log → the xAI key is not
   stored; re-enter it and Save & restart.
-- Stuck on "接続エラー" / repeated reconnects → check the key is valid and has
+- Stuck on "Connection error" / repeated reconnects → check the key is valid and has
   credit, the network allows outbound `wss://api.x.ai:443`, and the clock /
   TLS bundle is fine (`make monitor` shows `openai-rt` logs; a 401 means a bad
   key). The client is shared with OpenAI, so its log tag is `openai-rt`.
@@ -203,7 +232,7 @@ conversation page shows *サービス: xAI Grok* when it is selected.
   listed voices.
 - Do not use the device-side "update from release" OTA or the upstream Web
   Flasher on this build: they install upstream firmware, which has no Grok
-  provider (the setting falls back to OpenAI).
+  provider. To update, flash a newer `.bin` from this repo's releases.
 - Robot replies before you finish talking / does not reply → tune the room
   noise; VAD threshold, prefix padding and silence duration are shared with the
   OpenAI path (`vad_*` in `ConversationConfig`).
@@ -229,7 +258,7 @@ conversation page shows *サービス: xAI Grok* when it is selected.
 7. demo_loop begins — idle: random babble, random head pose, nadenade
    reactions; during a conversation the AI task drives avatar + audio.
 8. Tap top-right for the on-device UI; tap the screen during a reply to
-   barge in; the Control tab's "AP モード" row enters SoftAP provisioning.
+   barge in; the Control tab's "Wi-Fi setup (hotspot)" row enters SoftAP provisioning (started automatically on first boot when no Wi-Fi is stored).
 
 ## Repository layout
 
